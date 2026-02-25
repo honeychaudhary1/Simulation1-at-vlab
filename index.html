@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div class="main-container" id="labContainer">
+      <!-- ========== TOP SECTION ========== -->
+      <div class="top-section">
+        <div class="top-left">
+          <div class="mcb-container">
+            <div class="mcb-label">MCB</div>
+
+            <div class="mcb-image-wrapper">
+              <img
+                src="assets/images/mcboff.png"
+                alt="MCB Switch"
+                class="mcb-image"
+                id="mcbImage"
+              />
+            </div>
+
+            <div class="mcb-ports">
+              <div class="port port-dot js-port" id="A">
+                <img
+                  src="assets/images/littledot.png"
+                  alt="Port A"
+                  class="dot"
+                />
+                <span>A</span>
+              </div>
+
+              <div class="port port-dot js-port" id="B">
+                <img
+                  src="assets/images/littledot.png"
+                  alt="Port B"
+                  class="dot"
+                />
+                <span>B</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="top-center">
+          <div class="meter-board">
+            <div class="meters">
+              <div class="meter-wrapper">
+                <div class="meter-face">
+                  <img src="assets/images/voltmeter.png" alt="Voltmeter" class="meter-main-img" />
+                  <img src="assets/images/needle.png" alt="Needle" class="meter-needle" />
+                </div>
+
+                <div class="meter-dots">
+                  <div class="dot-group port port-dot js-port" id="F">
+                    <img src="assets/images/littledot.png" class="dot" />
+                    <span>F</span>
+                  </div>
+                  <div class="dot-group port port-dot js-port" id="G">
+                    <img src="assets/images/littledot.png" class="dot" />
+                    <span>G</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="meter-wrapper">
+                <div class="meter-face">
+                  <img src="assets/images/ammeter.png" alt="Ammeter" class="meter-main-img" />
+                  <img src="assets/images/needle.png" alt="Needle" class="meter-needle" />
+                </div>
+
+                <div class="meter-dots">
+                  <div class="dot-group port port-dot js-port" id="H">
+                    <img src="assets/images/littledot.png" class="dot" />
+                    <span>H</span>
+                  </div>
+                  <div class="dot-group port port-dot js-port" id="I">
+                    <img src="assets/images/littledot.png" class="dot" />
+                    <span>I</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="meter-wrapper">
+                <div class="meter-face">
+                  <img src="assets/images/wattmeter.png" alt="Wattmeter" class="meter-main-img" />
+                  <img src="assets/images/needle.png" alt="Needle" class="meter-needle" />
+                </div>
+
+                <div class="meter-dots">
+                  <div class="dot-group port port-dot js-port" id="M">
+                    <img src="assets/images/littledot.png" class="dot" />
+                    <span>M</span>
+                  </div>
+                  <div class="dot-group port port-dot js-port" id="C">
+                    <img src="assets/images/littledot.png" class="dot" />
+                    <span>C</span>
+                  </div>
+                  <div class="dot-group port port-dot js-port" id="L">
+                    <img src="assets/images/littledot.png" class="dot" />
+                    <span>L</span>
+                  </div>
+                  <div class="dot-group port port-dot js-port" id="V">
+                    <img src="assets/images/littledot.png" class="dot" />
+                    <span>V</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="meter-buttons">
+            <button class="meter-btn">VOLTMETER</button>
+            <button class="meter-btn">AMMETER</button>
+            <button class="meter-btn">WATTMETER</button>
+          </div>
+        </div>
+        <div class="top-right">
+          <button class="control-btn" id="instructionsBtn">INSTRUCTIONS</button>
+          <button class="control-btn" id="checkConnectionBtn">CHECK CONNECTION</button>
+          <button class="control-btn" id="autoConnectBtn">AUTO CONNECT</button>
+          <button class="control-btn" id="addToTableBtn">ADD TO TABLE</button>
+          <button class="control-btn" id="resetBtn">RESET</button>
+          <button class="control-btn" id="printBtn">PRINT</button>
+
+          <div
+            class="instructions-tooltip"
+            id="instructionsTooltip"
+            role="tooltip"
+            aria-hidden="true"
+          >
+            <h3>Steps</h3>
+            <p>
+              <strong>Step 1:</strong> Make the proper connections by clicking
+              the nodes as instructed below. If the wire is wrongly connected,
+              Click on the node number to detach the wire.
+            </p>
+            <table class="instructions-map">
+              <tr>
+                <th>From</th>
+                <td>A</td>
+                <td>B</td>
+                <td>D</td>
+                <td>E</td>
+                <td>E</td>
+                <td>D</td>
+                <td>H</td>
+                <td>C</td>
+                <td>L</td>
+                <td>V</td>
+                <td>S1</td>
+                <td>S2</td>
+              </tr>
+              <tr>
+                <th>To</th>
+                <td>D</td>
+                <td>E</td>
+                <td>F</td>
+                <td>G</td>
+                <td>I</td>
+                <td>P2</td>
+                <td>M</td>
+                <td>L</td>
+                <td>P1</td>
+                <td>P2</td>
+                <td>K</td>
+                <td>J</td>
+              </tr>
+            </table>
+            <p>
+              <strong>Step 2:</strong> Click
+              <strong>CHECK CONNECTION</strong> to verify connections. 
+              If the connection is correct, an alert appears. Click ok. Now, go to step 4.
+              If the connection is wrong, an alert appears. Click ok. Now, go to step 3.
+            </p>
+            <p>
+              <strong>Step 3:</strong> Check the connection and either detach the incorrect wire connection or Click on
+              <strong>RESET</strong> button and start from step 1.
+            </p>
+            <p><strong>Step 4:</strong> Switch on the MCB.</p>
+            <p><strong>Step 5:</strong> Click on the Autotransformer knob.</p>
+            <p>
+              <strong>Step 6:</strong> Click <strong>ADD TO TABLE</strong> to
+              store the readings to the observation table.
+            </p>
+            <p>
+              <strong>Step 7:</strong> Click <strong>PRINT</strong> to print the
+              page.
+            </p>
+            <p>
+              <strong>Step 8:</strong> Click
+              <strong>SHORT CIRCUIT TEST</strong> to perform the SC test.
+            </p>
+            <p>
+              <strong>Step 9:</strong> Click <strong>RESET</strong> to restart
+              the experiment.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== BOTTOM SECTION ========== -->
+      <div class="bottom-section">
+        <div class="bottom-left">
+          <div class="auto-container">
+            <div class="auto-box">
+              <img
+                src="assets/images/autotransformerouter.png"
+                class="auto-outer"
+              />
+              <img
+                src="assets/images/autotransformerinner.png"
+                class="auto-inner"
+                id="autoKnob"
+              />
+            </div>
+
+            <div class="auto-ports">
+              <div class="port port-dot js-port" id="D">
+                <img src="assets/images/littledot.png" class="dot" />
+                <span>D</span>
+              </div>
+
+              <div class="port port-dot js-port" id="E">
+                <img src="assets/images/littledot.png" class="dot" />
+                <span>E</span>
+              </div>
+            </div>
+            <div class="section-title">AUTOTRANSFORMER</div>
+          </div>
+        </div>
+
+        <div class="bottom-mid-left">
+          <div class="transformer-box">
+            <img src="assets/images/transformer.png" class="transformer-img" />
+          </div>
+
+          <div class="transformer-dots">
+            <div class="left-dots">
+              <div class="dot-group port port-dot js-port" id="P1">
+                <img src="assets/images/littledot.png" class="dot" />
+                <span>P1</span>
+              </div>
+              <div class="dot-group port port-dot js-port" id="P2">
+                <img src="assets/images/littledot.png" class="dot" />
+                <span>P2</span>
+              </div>
+            </div>
+
+            <div class="right-dots">
+              <div class="dot-group port port-dot js-port" id="S1">
+                <img src="assets/images/littledot.png" class="dot" />
+                <span>S1</span>
+              </div>
+              <div class="dot-group port port-dot js-port" id="S2">
+                <img src="assets/images/littledot.png" class="dot" />
+                <span>S2</span>
+              </div>
+            </div>
+          </div>
+          <div class="section-label">TRANSFORMER</div>
+        </div>
+
+        <div class="bottom-mid-right">
+          <div class="bottom-voltmeter-section">
+            <div class="meter-wrapper small-meter">
+              <div class="meter-face">
+                <img src="assets/images/voltmeter.png" alt="Voltmeter" class="meter-main-img" />
+                <img src="assets/images/needle.png" alt="Needle" class="meter-needle" />
+              </div>
+
+              <div class="meter-dots">
+                <div class="dot-group port port-dot js-port" id="J">
+                  <img src="assets/images/littledot.png" class="dot" />
+                  <span>J</span>
+                </div>
+
+                <div class="dot-group port port-dot js-port" id="K">
+                  <img src="assets/images/littledot.png" class="dot" />
+                  <span>K</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="section-label voltmeter-lower-label">VOLTMETER</div>
+        </div>
+
+        <div class="bottom-right">
+          <div class="label-wrapper">
+            <div class="section-label">OBSERVATION TABLE</div>
+          </div>
+          <div class="table-container">
+            <div class="table-box">
+              <table>
+                <thead>
+                  <tr>
+                    <th>S.No.</th>
+                    <th>Poc (Watt)</th>
+                    <th>Ioc (A)</th>
+                    <th>Voc (V)</th>
+                  </tr>
+                </thead>
+                <tbody id="observationTbody">
+                  <!-- Rows will be added later using JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="short-test-wrapper">
+            <button class="dark-btn" id="shortCircuitBtn">SHORT CIRCUIT TEST</button>
+          </div>
+        </div>
+      </div>
+
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jsPlumb/2.15.6/js/jsplumb.min.js"></script>
+      <script src="js/script.js"></script>
+    </div>
+  </body>
+</html>
