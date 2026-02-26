@@ -1,27 +1,34 @@
 const mcbImage = document.getElementById("mcbImage");
+const autoKnob = document.getElementById("autoKnob");
 const instructionsBtn = document.getElementById("instructionsBtn");
 const instructionsTooltip = document.getElementById("instructionsTooltip");
-const checkConnectionBtn = document.getElementById("checkConnectionBtn");
 const autoConnectBtn = document.getElementById("autoConnectBtn");
+const checkConnectionBtn = document.getElementById("checkConnectionBtn");
 const addToTableBtn = document.getElementById("addToTableBtn");
+const observationTbody = document.getElementById("observationTbody");
 const resetBtn = document.getElementById("resetBtn");
 const printBtn = document.getElementById("printBtn");
-const shortCircuitBtn = document.getElementById("shortCircuitBtn");
-const autoKnob = document.getElementById("autoKnob");
-const observationTbody = document.getElementById("observationTbody");
+const submitBtn = document.getElementById("submitBtn");
 
-const NEEDLE_START_ANGLE = -65;
-const NEEDLE_MCB_ON_ANGLE = 30;
-const NEEDLE_RUNNING_ANGLE = 32;
 const KNOB_START_DEG = 0;
 const KNOB_RUNNING_DEG = 35;
+const NEEDLE_START_ANGLE = -65;
+const NEEDLE_MCB_ON_ANGLE = -42;
+let shortCircuitReadingAdded = false;
+let mcbOn = false;
+let knobOn = false;
+let knobMoved = false;
+let connectionsVerified = false;
 
-const experiment = {
-    connectionsVerified: false,
-    mcbOn: false,
-    knobMoved: false,
-    readingAdded: false
-};
+function setMcbState(on) {
+    if (!mcbImage) return;
+    mcbImage.src = on ? "assets/images/mcbon.png" : "assets/images/mcboff.png";
+}
+
+function setKnobAngle(angleDeg) {
+    if (!autoKnob) return;
+    autoKnob.style.transform = `rotate(${angleDeg}deg)`;
+}
 
 function setNeedleAngle(angleDeg) {
     document.querySelectorAll(".meter-face").forEach((face) => {
@@ -29,52 +36,39 @@ function setNeedleAngle(angleDeg) {
     });
 }
 
-function setKnobAngle(angleDeg) {
-    if (autoKnob) {
-        autoKnob.style.transform = `rotate(${angleDeg}deg)`;
-    }
+if (mcbImage) {
+    setMcbState(false);
+    setNeedleAngle(NEEDLE_START_ANGLE);
+
+    mcbImage.addEventListener("click", () => {
+        mcbOn = !mcbOn;
+        setMcbState(mcbOn);
+        if (!mcbOn) {
+            knobOn = false;
+            knobMoved = false;
+            setKnobAngle(KNOB_START_DEG);
+            setNeedleAngle(NEEDLE_START_ANGLE);
+            return;
+        }
+        setNeedleAngle(NEEDLE_MCB_ON_ANGLE);
+    });
 }
 
-function setMcbState(on) {
-    experiment.mcbOn = on;
-    if (mcbImage) {
-        mcbImage.src = on ? "assets/images/mcbon.png" : "assets/images/mcboff.png";
-    }
+if (autoKnob) {
+    setKnobAngle(KNOB_START_DEG);
+
+    autoKnob.addEventListener("click", () => {
+        knobOn = !knobOn;
+        knobMoved = true;
+        setKnobAngle(knobOn ? KNOB_RUNNING_DEG : KNOB_START_DEG);
+    });
 }
 
 function resetObservationTable() {
     if (observationTbody) {
         observationTbody.innerHTML = "";
     }
-    experiment.readingAdded = false;
-}
-
-function resetStep4AndBeyond() {
-    setMcbState(false);
-    experiment.knobMoved = false;
-    setKnobAngle(KNOB_START_DEG);
-    setNeedleAngle(NEEDLE_START_ANGLE);
-    resetObservationTable();
-}
-
-if (mcbImage) {
-    mcbImage.addEventListener("click", () => {
-        if (!experiment.mcbOn && !experiment.connectionsVerified) {
-            alert("Please make and verify correct connections first (Step 1 & 2).");
-            return;
-        }
-
-        const nextState = !experiment.mcbOn;
-        setMcbState(nextState);
-
-        if (!nextState) {
-            experiment.knobMoved = false;
-            setKnobAngle(KNOB_START_DEG);
-            setNeedleAngle(NEEDLE_START_ANGLE);
-        } else {
-            setNeedleAngle(NEEDLE_MCB_ON_ANGLE);
-        }
-    });
+    shortCircuitReadingAdded = false;
 }
 
 if (instructionsBtn && instructionsTooltip) {
@@ -129,15 +123,15 @@ if (instructionsBtn && instructionsTooltip) {
     });
 }
 
-jsPlumb.ready(function () {
+jsPlumb.ready(() => {
     const instance = jsPlumb.getInstance({
         Connector: ["Bezier", { curviness: 80 }],
         PaintStyle: { stroke: "#4a90e2", strokeWidth: 3 },
         HoverPaintStyle: { stroke: "#ff0000" }
     });
 
-    instance.setContainer("labContainer");
-
+    instance.setContainer("shortLabContainer");
+    const endpointMap = {};
     const requiredConnectionPairs = [
         ["A", "D"],
         ["B", "E"],
@@ -149,22 +143,13 @@ jsPlumb.ready(function () {
         ["C", "L"],
         ["L", "P1"],
         ["V", "P2"],
-        ["S1", "K"],
-        ["S2", "J"]
+        ["S1", "S2"]
     ];
-
     const toConnectionKey = (node1, node2) =>
         [node1, node2].sort().join("--");
-
     const requiredConnectionSet = new Set(
         requiredConnectionPairs.map(([from, to]) => toConnectionKey(from, to))
     );
-    const endpointMap = {};
-
-    function invalidateConnectionVerification() {
-        experiment.connectionsVerified = false;
-        resetStep4AndBeyond();
-    }
 
     function addAllEndpoints() {
         instance.deleteEveryEndpoint();
@@ -172,7 +157,7 @@ jsPlumb.ready(function () {
             delete endpointMap[key];
         });
 
-        document.querySelectorAll(".js-port").forEach(function (portEl) {
+        document.querySelectorAll(".js-port").forEach((portEl) => {
             const dotEl = portEl.querySelector(".dot");
             if (!dotEl) return;
 
@@ -187,10 +172,7 @@ jsPlumb.ready(function () {
             const endpoint = instance.addEndpoint(portEl, {
                 anchor: [anchorX, anchorY, 0, 0],
                 endpoint: "Dot",
-                paintStyle: {
-                    fill: "#000",
-                    radius: 8
-                },
+                paintStyle: { fill: "#000", radius: 8 },
                 isSource: true,
                 isTarget: true,
                 maxConnections: -1
@@ -227,24 +209,23 @@ jsPlumb.ready(function () {
         });
     });
 
-    instance.bind("connection", invalidateConnectionVerification);
-    instance.bind("connectionDetached", invalidateConnectionVerification);
-
     window.addEventListener("load", addAllEndpoints);
-    window.addEventListener("resize", function () {
+    window.addEventListener("resize", () => {
         instance.repaintEverything();
     });
 
-    addAllEndpoints();
-    setNeedleAngle(NEEDLE_START_ANGLE);
-    setKnobAngle(KNOB_START_DEG);
-    setMcbState(false);
+    instance.bind("connection", () => {
+        connectionsVerified = false;
+    });
+    instance.bind("connectionDetached", () => {
+        connectionsVerified = false;
+    });
 
     if (autoConnectBtn) {
-        autoConnectBtn.addEventListener("click", function () {
+        autoConnectBtn.addEventListener("click", () => {
             instance.deleteEveryConnection();
 
-            requiredConnectionPairs.forEach(function ([from, to]) {
+            requiredConnectionPairs.forEach(([from, to]) => {
                 const sourceEndpoint = endpointMap[from];
                 const targetEndpoint = endpointMap[to];
                 if (!sourceEndpoint || !targetEndpoint) return;
@@ -255,19 +236,18 @@ jsPlumb.ready(function () {
                 });
             });
 
-            experiment.connectionsVerified = false;
-            alert("Auto-connection done. Click CHECK CONNECTION to verify (Step 2).");
             instance.repaintEverything();
+            alert("Auto-connection done.");
         });
     }
 
     if (checkConnectionBtn) {
-        checkConnectionBtn.addEventListener("click", function () {
+        checkConnectionBtn.addEventListener("click", () => {
             const currentConnections = instance.getAllConnections();
             const currentConnectionSet = new Set();
             let hasInvalidNodeId = false;
 
-            currentConnections.forEach(function (connection) {
+            currentConnections.forEach((connection) => {
                 const sourceId = connection.sourceId;
                 const targetId = connection.targetId;
 
@@ -288,12 +268,12 @@ jsPlumb.ready(function () {
                 );
 
             if (hasExactMatch) {
-                experiment.connectionsVerified = true;
+                connectionsVerified = true;
                 alert(
                     "All connections are correct.\nClick OK and proceed to Step 4."
                 );
             } else {
-                invalidateConnectionVerification();
+                connectionsVerified = false;
                 alert(
                     "Connections are incorrect.\nPlease go to Step 3, fix wrong wires, then check again."
                 );
@@ -301,58 +281,19 @@ jsPlumb.ready(function () {
         });
     }
 
-    if (autoKnob) {
-        autoKnob.addEventListener("click", () => {
-            if (!experiment.connectionsVerified) {
-                alert("Please verify connections first using CHECK CONNECTION.");
-                return;
-            }
-            if (!experiment.mcbOn) {
-                alert("Please switch ON the MCB first (Step 4).");
-                return;
-            }
-
-            experiment.knobMoved = true;
-            setKnobAngle(KNOB_RUNNING_DEG);
-            setNeedleAngle(NEEDLE_RUNNING_ANGLE);
-        });
-    }
-
     if (addToTableBtn) {
         addToTableBtn.addEventListener("click", () => {
-            if (!experiment.connectionsVerified) {
-                alert("Please complete Step 1 and Step 2 first.");
-                return;
-            }
-            if (!experiment.mcbOn) {
-                alert("Please switch ON the MCB first (Step 4).");
-                return;
-            }
-            if (!experiment.knobMoved) {
-                alert("Please click the autotransformer knob first (Step 5).");
-                return;
-            }
-            if (experiment.readingAdded) {
-                alert("Only one reading is required for this test.");
-                return;
-            }
             if (!observationTbody) return;
+            if (shortCircuitReadingAdded) {
+                alert("Reading already added to the observation table.");
+                return;
+            }
 
             const row = document.createElement("tr");
-            row.innerHTML = "<td>1</td><td>50</td><td>0.9</td><td>230</td>";
+            row.innerHTML = "<td>1</td><td>37.5</td><td>4.5</td><td>11</td>";
             observationTbody.appendChild(row);
-            experiment.readingAdded = true;
+            shortCircuitReadingAdded = true;
             alert("Reading added to observation table.");
-        });
-    }
-
-    if (shortCircuitBtn) {
-        shortCircuitBtn.addEventListener("click", () => {
-            if (!experiment.readingAdded) {
-                alert("Please add the reading to the table first (Step 6).");
-                return;
-            }
-            window.location.href = "short-circuit.html";
         });
     }
 
@@ -365,9 +306,39 @@ jsPlumb.ready(function () {
     if (resetBtn) {
         resetBtn.addEventListener("click", () => {
             instance.deleteEveryConnection();
-            experiment.connectionsVerified = false;
-            resetStep4AndBeyond();
+            connectionsVerified = false;
+            mcbOn = false;
+            knobOn = false;
+            knobMoved = false;
+            setMcbState(false);
+            setKnobAngle(KNOB_START_DEG);
+            setNeedleAngle(NEEDLE_START_ANGLE);
+            resetObservationTable();
             alert("Experiment reset. Start again from Step 1.");
         });
     }
+
+    if (submitBtn) {
+        submitBtn.addEventListener("click", () => {
+            if (!connectionsVerified) {
+                alert("Please complete Step 2: check and verify all connections.");
+                return;
+            }
+            if (!mcbOn) {
+                alert("Please complete Step 4: switch ON the MCB.");
+                return;
+            }
+            if (!knobMoved) {
+                alert("Please complete Step 5: click the autotransformer knob.");
+                return;
+            }
+            if (!shortCircuitReadingAdded) {
+                alert("Please complete Step 6: add reading to the observation table.");
+                return;
+            }
+            window.location.href = "equivalent-circuit.html";
+        });
+    }
+
+    addAllEndpoints();
 });
