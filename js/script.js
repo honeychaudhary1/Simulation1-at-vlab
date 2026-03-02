@@ -14,7 +14,7 @@ const NEEDLE_START_ANGLE = -65;
 const NEEDLE_MCB_ON_ANGLE = 30;
 const NEEDLE_RUNNING_ANGLE = 32;
 const KNOB_START_DEG = 0;
-const KNOB_RUNNING_DEG = 35;
+const KNOB_RUNNING_DEG = 55;
 
 const experiment = {
     connectionsVerified: false,
@@ -371,3 +371,4 @@ jsPlumb.ready(function () {
         });
     }
 });
+

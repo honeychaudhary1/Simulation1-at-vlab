@@ -41,6 +41,11 @@ if (mcbImage) {
     setNeedleAngle(NEEDLE_START_ANGLE);
 
     mcbImage.addEventListener("click", () => {
+        if (!mcbOn && !connectionsVerified) {
+            alert("Please make and verify correct connections first (Step 1 & 2).");
+            return;
+        }
+
         mcbOn = !mcbOn;
         setMcbState(mcbOn);
         if (!mcbOn) {
@@ -342,3 +347,4 @@ jsPlumb.ready(() => {
 
     addAllEndpoints();
 });
+

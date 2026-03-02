@@ -166,6 +166,7 @@ body {
 .meters {
     display: flex;
     justify-content: center;
+    align-items: flex-start;
     gap: clamp(14px, 2vw, 40px);
 }
 
@@ -209,20 +210,36 @@ body {
 
 .meter-face {
     position: relative;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: clamp(100px, 10vw, 190px);
+    height: clamp(86px, 8.6vw, 165px);
     line-height: 0;
     --needle-angle: 65deg;
 }
 
 .meter-main-img {
-    width: clamp(100px, 10vw, 190px);
-    max-height: none;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
     display: block;
+}
+
+/* Keep ammeter layout width identical, but scale artwork visually to match other meters */
+.ammeter-meter .meter-main-img {
+    transform: scale(1.14);
+    transform-origin: center center;
+}
+
+.wattmeter-meter .meter-main-img {
+    transform: scale(0.92);
+    transform-origin: center center;
 }
 
 .meter-needle {
     position: absolute;
-    width: 44px;
+    width: 37px;
     height: auto;
     left: 47%;
     top: 36%;
@@ -239,7 +256,7 @@ body {
 }
 
 .small-meter .meter-needle {
-    width: 40px;
+    width: 34px;
     top: 37%;
 }
 .meter-dots {
