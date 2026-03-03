@@ -20,6 +20,64 @@ let knobOn = false;
 let knobMoved = false;
 let connectionsVerified = false;
 
+function showStepAlert(message, title = "Instruction") {
+    let overlay = document.getElementById("customAlertOverlay");
+    let titleEl;
+    let messageEl;
+    let okBtn;
+
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "customAlertOverlay";
+        overlay.className = "custom-alert-overlay";
+        overlay.innerHTML = `
+            <div class="custom-alert-box" role="alertdialog" aria-modal="true" aria-labelledby="customAlertTitle" aria-describedby="customAlertMessage">
+                <h2 id="customAlertTitle" class="custom-alert-title"></h2>
+                <p id="customAlertMessage" class="custom-alert-message"></p>
+                <button id="customAlertOkBtn" class="custom-alert-ok-btn" type="button">OK</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    }
+
+    titleEl = document.getElementById("customAlertTitle");
+    messageEl = document.getElementById("customAlertMessage");
+    okBtn = document.getElementById("customAlertOkBtn");
+
+    if (!titleEl || !messageEl || !okBtn) {
+        alert(message);
+        return;
+    }
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    overlay.classList.remove("closing");
+    overlay.classList.add("show");
+
+    const closeAlert = () => {
+        if (overlay.classList.contains("closing")) return;
+        overlay.classList.add("closing");
+        document.removeEventListener("keydown", onKeyDown);
+
+        const onCloseEnd = () => {
+            overlay.classList.remove("show", "closing");
+            overlay.removeEventListener("animationend", onCloseEnd);
+        };
+
+        overlay.addEventListener("animationend", onCloseEnd);
+    };
+
+    const onKeyDown = (event) => {
+        if (event.key === "Escape" || event.key === "Enter") {
+            closeAlert();
+        }
+    };
+
+    okBtn.onclick = closeAlert;
+    document.addEventListener("keydown", onKeyDown);
+    okBtn.focus();
+}
+
 function setMcbState(on) {
     if (!mcbImage) return;
     mcbImage.src = on ? "assets/images/mcbon.png" : "assets/images/mcboff.png";
@@ -42,7 +100,7 @@ if (mcbImage) {
 
     mcbImage.addEventListener("click", () => {
         if (!mcbOn && !connectionsVerified) {
-            alert("Please make and verify correct connections first (Step 1 & 2).");
+            showStepAlert("Please make and verify correct connections first (Step 1 & 2).");
             return;
         }
 
@@ -130,8 +188,8 @@ if (instructionsBtn && instructionsTooltip) {
 
 jsPlumb.ready(() => {
     const instance = jsPlumb.getInstance({
-        Connector: ["Bezier", { curviness: 80 }],
-        PaintStyle: { stroke: "#4a90e2", strokeWidth: 3 },
+        Connector: ["Bezier", { curviness: 120 }],
+        PaintStyle: { stroke: "#4a90e2", strokeWidth: 4 },
         HoverPaintStyle: { stroke: "#ff0000" }
     });
 
@@ -175,9 +233,14 @@ jsPlumb.ready(() => {
                 (dotRect.top - portRect.top + dotRect.height / 2) / portRect.height;
 
             const endpoint = instance.addEndpoint(portEl, {
-                anchor: [anchorX, anchorY, 0, 0],
+                anchor: [
+                    Math.max(0, Math.min(1, anchorX)),
+                    Math.max(0, Math.min(1, anchorY)),
+                    0,
+                    0
+                ],
                 endpoint: "Dot",
-                paintStyle: { fill: "#000", radius: 8 },
+                paintStyle: { fill: "transparent", radius: 10 },
                 isSource: true,
                 isTarget: true,
                 maxConnections: -1
@@ -242,7 +305,7 @@ jsPlumb.ready(() => {
             });
 
             instance.repaintEverything();
-            alert("Auto-connection done.");
+            showStepAlert("Autoconnect completed. Click on the check button to verify the connections.");
         });
     }
 
@@ -274,12 +337,12 @@ jsPlumb.ready(() => {
 
             if (hasExactMatch) {
                 connectionsVerified = true;
-                alert(
+                showStepAlert(
                     "All connections are correct.\nClick OK and proceed to Step 4."
                 );
             } else {
                 connectionsVerified = false;
-                alert(
+                showStepAlert(
                     "Connections are incorrect.\nPlease go to Step 3, fix wrong wires, then check again."
                 );
             }
@@ -290,7 +353,7 @@ jsPlumb.ready(() => {
         addToTableBtn.addEventListener("click", () => {
             if (!observationTbody) return;
             if (shortCircuitReadingAdded) {
-                alert("Reading already added to the observation table.");
+                showStepAlert("Reading already added to the observation table.");
                 return;
             }
 
@@ -298,7 +361,7 @@ jsPlumb.ready(() => {
             row.innerHTML = "<td>1</td><td>37.5</td><td>4.5</td><td>11</td>";
             observationTbody.appendChild(row);
             shortCircuitReadingAdded = true;
-            alert("Reading added to observation table.");
+            showStepAlert("Reading added to observation table.");
         });
     }
 
@@ -319,26 +382,26 @@ jsPlumb.ready(() => {
             setKnobAngle(KNOB_START_DEG);
             setNeedleAngle(NEEDLE_START_ANGLE);
             resetObservationTable();
-            alert("Experiment reset. Start again from Step 1.");
+            showStepAlert("Experiment reset. Start again from Step 1.");
         });
     }
 
     if (submitBtn) {
         submitBtn.addEventListener("click", () => {
             if (!connectionsVerified) {
-                alert("Please complete Step 2: check and verify all connections.");
+                showStepAlert("Please complete Step 2: check and verify all connections.");
                 return;
             }
             if (!mcbOn) {
-                alert("Please complete Step 4: switch ON the MCB.");
+                showStepAlert("Please complete Step 4: switch ON the MCB.");
                 return;
             }
             if (!knobMoved) {
-                alert("Please complete Step 5: click the autotransformer knob.");
+                showStepAlert("Please complete Step 5: click the autotransformer knob.");
                 return;
             }
             if (!shortCircuitReadingAdded) {
-                alert("Please complete Step 6: add reading to the observation table.");
+                showStepAlert("Please complete Step 6: add reading to the observation table.");
                 return;
             }
             window.location.href = "equivalent-circuit.html";
