@@ -121,6 +121,15 @@ if (autoKnob) {
     setKnobAngle(KNOB_START_DEG);
 
     autoKnob.addEventListener("click", () => {
+        if (!connectionsVerified) {
+            showStepAlert("Please verify connections first using CHECK.");
+            return;
+        }
+        if (!mcbOn) {
+            showStepAlert("Please switch ON the MCB first (Step 4).");
+            return;
+        }
+
         knobOn = !knobOn;
         knobMoved = true;
         setKnobAngle(knobOn ? KNOB_RUNNING_DEG : KNOB_START_DEG);
@@ -352,6 +361,18 @@ jsPlumb.ready(() => {
     if (addToTableBtn) {
         addToTableBtn.addEventListener("click", () => {
             if (!observationTbody) return;
+            if (!connectionsVerified) {
+                showStepAlert("Please complete Step 1 and Step 2 first.");
+                return;
+            }
+            if (!mcbOn) {
+                showStepAlert("Please switch ON the MCB first (Step 4).");
+                return;
+            }
+            if (!knobMoved || !knobOn) {
+                showStepAlert("Please turn ON the autotransformer and perform Step 5 first.");
+                return;
+            }
             if (shortCircuitReadingAdded) {
                 showStepAlert("Reading already added to the observation table.");
                 return;
