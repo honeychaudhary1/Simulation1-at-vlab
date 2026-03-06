@@ -277,7 +277,7 @@ jsPlumb.ready(() => {
         });
     }
 
-    document.querySelectorAll(".js-port span").forEach((label) => {
+    document.querySelectorAll(".js-port .port-label").forEach((label) => {
         label.addEventListener("click", (event) => {
             const nodeId = label.parentElement?.id;
             if (!nodeId) return;

@@ -189,7 +189,7 @@ if (instructionsBtn && instructionsTooltip) {
 
 jsPlumb.ready(function () {
     const instance = jsPlumb.getInstance({
-        Connector: ["Bezier", { curviness: 120 }],
+        Connector: ["Bezier", { curviness: 180 }],
         PaintStyle: { stroke: "#4a90e2", strokeWidth: 4 },
         HoverPaintStyle: { stroke: "#ff0000" }
     });
@@ -281,7 +281,7 @@ jsPlumb.ready(function () {
         });
     }
 
-    document.querySelectorAll(".js-port span").forEach((label) => {
+    document.querySelectorAll(".js-port .port-label").forEach((label) => {
         label.addEventListener("click", (event) => {
             const nodeId = label.parentElement?.id;
             if (!nodeId) return;
