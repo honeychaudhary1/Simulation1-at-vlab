@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>Open Circuit Test</title>
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
@@ -12,7 +12,7 @@
       <div class="top-section">
         <div class="top-left">
           <div class="mcb-container">
-            <div class="mcb-label">MCB</div>
+            <div class="mcb-label info-trigger" data-info-key="mcb">MCB</div>
 
             <div class="mcb-image-wrapper">
               <img
@@ -49,7 +49,12 @@
             <div class="meters">
               <div class="meter-wrapper">
                 <div class="meter-face">
-                  <img src="assets/images/voltmeter.png" alt="Voltmeter" class="meter-main-img" />
+                  <img
+                    src="assets/images/voltmeter.png"
+                    alt="Voltmeter"
+                    class="meter-main-img info-trigger"
+                    data-info-key="ac-voltmeter"
+                  />
                   <img src="assets/images/needle.png" alt="Needle" class="meter-needle" />
                 </div>
 
@@ -63,12 +68,17 @@
                     <button type="button" class="port-label">G</button>
                   </div>
                 </div>
-                <div class="meter-label">VOLTMETER</div>
+                <div class="meter-label">VOLTMETER-1</div>
               </div>
 
               <div class="meter-wrapper ammeter-meter">
                 <div class="meter-face">
-                  <img src="assets/images/ammeter.png" alt="Ammeter" class="meter-main-img" />
+                  <img
+                    src="assets/images/ammeter.png"
+                    alt="Ammeter"
+                    class="meter-main-img info-trigger"
+                    data-info-key="ac-ammeter"
+                  />
                   <img src="assets/images/needle.png" alt="Needle" class="meter-needle" />
                 </div>
 
@@ -87,7 +97,12 @@
 
               <div class="meter-wrapper wattmeter-meter">
                 <div class="meter-face">
-                  <img src="assets/images/wattmeter.png" alt="Wattmeter" class="meter-main-img" />
+                  <img
+                    src="assets/images/wattmeter.png"
+                    alt="Wattmeter"
+                    class="meter-main-img info-trigger"
+                    data-info-key="ac-wattmeter"
+                  />
                   <img src="assets/images/needle.png" alt="Needle" class="meter-needle" />
                 </div>
 
@@ -116,11 +131,13 @@
         </div>
         <div class="top-right">
           <button class="control-btn" id="instructionsBtn">INSTRUCTIONS</button>
+          <button class="control-btn" id="aiGuideBtn">AI GUIDE</button>
           <button class="control-btn" id="checkConnectionBtn">CHECK</button>
           <button class="control-btn" id="autoConnectBtn">AUTO CONNECT</button>
           <button class="control-btn" id="addToTableBtn">ADD TO TABLE</button>
           <button class="control-btn" id="resetBtn">RESET</button>
           <button class="control-btn" id="printBtn">PRINT</button>
+          <button class="control-btn" id="reportBtn">REPORT</button>
 
           <div
             class="instructions-tooltip"
@@ -225,13 +242,17 @@
                 <button type="button" class="port-label">E</button>
               </div>
             </div>
-            <div class="section-title">AUTOTRANSFORMER</div>
+            <div class="section-title info-trigger" data-info-key="autotransformer">AUTOTRANSFORMER</div>
           </div>
         </div>
 
         <div class="bottom-mid-left">
           <div class="transformer-box">
-            <img src="assets/images/transformer.png" class="transformer-img" />
+            <img
+              src="assets/images/transformer.png"
+              class="transformer-img info-trigger"
+              data-info-key="transformer"
+            />
             <div class="transformer-dots">
               <div class="left-dots">
                 <div class="dot-group port port-dot js-port" id="P1">
@@ -263,7 +284,12 @@
           <div class="bottom-voltmeter-section">
             <div class="meter-wrapper small-meter">
               <div class="meter-face">
-                <img src="assets/images/voltmeter.png" alt="Voltmeter" class="meter-main-img" />
+                <img
+                  src="assets/images/voltmeter.png"
+                  alt="Voltmeter"
+                  class="meter-main-img info-trigger"
+                  data-info-key="ac-voltmeter"
+                />
                 <img src="assets/images/needle.png" alt="Needle" class="meter-needle" />
               </div>
 
@@ -280,7 +306,7 @@
               </div>
             </div>
           </div>
-          <div class="section-label voltmeter-lower-label">VOLTMETER</div>
+          <div class="section-label voltmeter-lower-label">VOLTMETER-2</div>
         </div>
 
         <div class="bottom-right">
