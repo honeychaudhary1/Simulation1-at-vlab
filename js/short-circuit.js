@@ -313,9 +313,14 @@ setupComponentInfoTooltip({
 });
 
 jsPlumb.ready(() => {
+    const connectorSpec = [
+        "Bezier",
+        { curviness: 150, alwaysRespectStubs: false, stub: [10, 14] }
+    ];
+
     const instance = jsPlumb.getInstance({
-        Connector: ["Bezier", { curviness: 120 }],
-        PaintStyle: { stroke: "#4a90e2", strokeWidth: 4 },
+        Connector: connectorSpec,
+        PaintStyle: { stroke: "#4a90e2", strokeWidth: 3.5 },
         HoverPaintStyle: { stroke: "#ff0000" }
     });
 
@@ -468,43 +473,48 @@ jsPlumb.ready(() => {
     };
 
     function addAllEndpoints() {
-        instance.deleteEveryEndpoint();
-        Object.keys(endpointMap).forEach((key) => {
-            delete endpointMap[key];
-        });
-
-        document.querySelectorAll(".js-port").forEach((portEl) => {
-            const dotEl = portEl.querySelector(".dot");
-            if (!dotEl) return;
-
-            const portRect = portEl.getBoundingClientRect();
-            const dotRect = dotEl.getBoundingClientRect();
-
-            const anchorX =
-                (dotRect.left - portRect.left + dotRect.width / 2) / portRect.width;
-            const anchorY =
-                (dotRect.top - portRect.top + dotRect.height / 2) / portRect.height;
-
-            const endpoint = instance.addEndpoint(portEl, {
-                anchor: [
-                    Math.max(0, Math.min(1, anchorX)),
-                    Math.max(0, Math.min(1, anchorY)),
-                    0,
-                    0
-                ],
-                endpoint: "Dot",
-                paintStyle: { fill: "transparent", radius: 10 },
-                isSource: true,
-                isTarget: true,
-                maxConnections: -1
+        instance.batch(() => {
+            instance.deleteEveryEndpoint();
+            Object.keys(endpointMap).forEach((key) => {
+                delete endpointMap[key];
             });
 
-            if (portEl.id) {
-                endpointMap[portEl.id] = endpoint;
-            }
-        });
+            document.querySelectorAll(".js-port").forEach((portEl) => {
+                const dotEl = portEl.querySelector(".dot");
+                if (!dotEl) return;
 
-        instance.repaintEverything();
+                const portRect = portEl.getBoundingClientRect();
+                const dotRect = dotEl.getBoundingClientRect();
+
+                const anchorX =
+                    (dotRect.left - portRect.left + dotRect.width / 2) / portRect.width;
+                const anchorY =
+                    (dotRect.top - portRect.top + dotRect.height / 2) / portRect.height;
+                const isLeftSide = anchorX < 0.35;
+                const isRightSide = anchorX > 0.65;
+                const directionX = isLeftSide ? -1 : isRightSide ? 1 : 0;
+                const directionY = directionX === 0 ? -1 : 0;
+
+                const endpoint = instance.addEndpoint(portEl, {
+                    anchor: [
+                        Math.max(0, Math.min(1, anchorX)),
+                        Math.max(0, Math.min(1, anchorY)),
+                        directionX,
+                        directionY
+                    ],
+                    endpoint: "Dot",
+                    paintStyle: { fill: "transparent", radius: 10 },
+                    connector: connectorSpec,
+                    isSource: true,
+                    isTarget: true,
+                    maxConnections: -1
+                });
+
+                if (portEl.id) {
+                    endpointMap[portEl.id] = endpoint;
+                }
+            });
+        });
     }
 
     function detachNodeConnections(nodeId) {
@@ -536,8 +546,18 @@ jsPlumb.ready(() => {
     });
 
     window.addEventListener("load", addAllEndpoints);
+    let repaintQueued = false;
+    const scheduleRepaint = () => {
+        if (repaintQueued) return;
+        repaintQueued = true;
+        window.requestAnimationFrame(() => {
+            repaintQueued = false;
+            instance.repaintEverything();
+        });
+    };
+
     window.addEventListener("resize", () => {
-        instance.repaintEverything();
+        scheduleRepaint();
     });
 
     if (aiGuideBtn) {
@@ -578,20 +598,23 @@ jsPlumb.ready(() => {
 
     if (autoConnectBtn) {
         autoConnectBtn.addEventListener("click", () => {
-            instance.deleteEveryConnection();
+            instance.batch(() => {
+                instance.deleteEveryConnection();
 
-            requiredConnectionPairs.forEach(([from, to]) => {
-                const sourceEndpoint = endpointMap[from];
-                const targetEndpoint = endpointMap[to];
-                if (!sourceEndpoint || !targetEndpoint) return;
+                requiredConnectionPairs.forEach(([from, to]) => {
+                    const sourceEndpoint = endpointMap[from];
+                    const targetEndpoint = endpointMap[to];
+                    if (!sourceEndpoint || !targetEndpoint) return;
 
-                instance.connect({
-                    source: sourceEndpoint,
-                    target: targetEndpoint
+                    instance.connect({
+                        source: sourceEndpoint,
+                        target: targetEndpoint,
+                        connector: connectorSpec
+                    });
                 });
             });
 
-            instance.repaintEverything();
+            scheduleRepaint();
             guideAlert("Autoconnect completed. Click on the check button to verify the connections.", "autoconnect_completed");
             if (guideState.enabled) {
                 clearGuideHighlights();
@@ -725,6 +748,7 @@ jsPlumb.ready(() => {
             clearGuideHighlights();
             stopGuideAudio();
             guideState.currentConnectionPrompt = "";
+            scheduleRepaint();
         });
     }
 
