@@ -15,22 +15,10 @@ const submitBtn = document.getElementById("submitBtn");
 const KNOB_START_DEG = 0;
 const KNOB_RUNNING_DEG = 35;
 const NEEDLE_START_ANGLE = -65;
-const NEEDLE_MCB_ON_ANGLE = -42;
-const NEEDLE_END_ANGLE = 65;
-const SHORT_CIRCUIT_READING = {
-    voltmeter: 11,
-    ammeter: 4.5,
-    wattmeter: 37.5
-};
-const SHORT_CIRCUIT_SCALES = {
-    voltmeter: 300,
-    ammeter: 6,
-    wattmeter: 100
-};
-const SHORT_CIRCUIT_ANGLE_ADJUSTMENTS = {
-    voltmeter: 0,
-    ammeter: 0,
-    wattmeter: 0
+const SHORT_CIRCUIT_NEEDLE_ANGLES = {
+    voltmeter: -60.23,
+    ammeter: 32.5,
+    wattmeter: -16.25
 };
 let shortCircuitReadingAdded = false;
 let mcbOn = false;
@@ -103,7 +91,7 @@ function setMcbState(on) {
 
 function setKnobAngle(angleDeg) {
     if (!autoKnob) return;
-    autoKnob.style.transform = `rotate(${angleDeg}deg)`;
+    autoKnob.style.transform = `translate(-50%, -50%) rotate(${angleDeg}deg)`;
 }
 
 function setNeedleAngle(angleDeg) {
@@ -119,25 +107,18 @@ function setMeterNeedleAngle(selector, angleDeg) {
     }
 }
 
-function mapReadingToAngle(reading, maxReading) {
-    const safeMax = Math.max(maxReading, 1);
-    const clampedReading = Math.min(Math.max(reading, 0), safeMax);
-    const progress = clampedReading / safeMax;
-    return NEEDLE_START_ANGLE + progress * (NEEDLE_END_ANGLE - NEEDLE_START_ANGLE);
-}
-
 function showShortCircuitReadings() {
     setMeterNeedleAngle(
         ".top-center .meter-wrapper:not(.ammeter-meter):not(.wattmeter-meter) .meter-face",
-        mapReadingToAngle(SHORT_CIRCUIT_READING.voltmeter, SHORT_CIRCUIT_SCALES.voltmeter) + SHORT_CIRCUIT_ANGLE_ADJUSTMENTS.voltmeter
+        SHORT_CIRCUIT_NEEDLE_ANGLES.voltmeter
     );
     setMeterNeedleAngle(
         ".top-center .ammeter-meter .meter-face",
-        mapReadingToAngle(SHORT_CIRCUIT_READING.ammeter, SHORT_CIRCUIT_SCALES.ammeter) + SHORT_CIRCUIT_ANGLE_ADJUSTMENTS.ammeter
+        SHORT_CIRCUIT_NEEDLE_ANGLES.ammeter
     );
     setMeterNeedleAngle(
         ".top-center .wattmeter-meter .meter-face",
-        mapReadingToAngle(SHORT_CIRCUIT_READING.wattmeter, SHORT_CIRCUIT_SCALES.wattmeter) + SHORT_CIRCUIT_ANGLE_ADJUSTMENTS.wattmeter
+        SHORT_CIRCUIT_NEEDLE_ANGLES.wattmeter
     );
 }
 
@@ -167,7 +148,7 @@ if (mcbImage) {
             }
             return;
         }
-        setNeedleAngle(NEEDLE_MCB_ON_ANGLE);
+        showShortCircuitReadings();
         if (window.aiGuideNotify) {
             window.aiGuideNotify("MCB has been turned ON. Now click on the autotransformer knob.", "mcb_on", true);
         }
@@ -198,11 +179,6 @@ if (autoKnob) {
         knobOn = !knobOn;
         knobMoved = true;
         setKnobAngle(knobOn ? KNOB_RUNNING_DEG : KNOB_START_DEG);
-        if (knobOn) {
-            showShortCircuitReadings();
-        } else {
-            setNeedleAngle(NEEDLE_MCB_ON_ANGLE);
-        }
         if (window.aiGuideNotify && knobOn) {
             window.aiGuideNotify(
                 "The readings are now displayed on the voltmeter, ammeter, and wattmeter. Now, click on the add to table button to add the reading to the observation table.",
@@ -391,6 +367,16 @@ jsPlumb.ready(() => {
     ];
     const toConnectionKey = (node1, node2) =>
         [node1, node2].sort().join("--");
+    const connectionConnectorOverrides = {
+        [toConnectionKey("H", "M")]: ["Bezier", { curviness: 58, alwaysRespectStubs: false, stub: [10, 14] }],
+        [toConnectionKey("C", "L")]: ["Bezier", { curviness: 45, alwaysRespectStubs: false, stub: [10, 14] }],
+        [toConnectionKey("S2", "J")]: ["Bezier", { curviness: 82, alwaysRespectStubs: false, stub: [10, 14] }],
+        [toConnectionKey("S1", "K")]: ["Bezier", { curviness: 72, alwaysRespectStubs: false, stub: [10, 14] }],
+        [toConnectionKey("P2", "V")]: ["Bezier", { curviness: 88, alwaysRespectStubs: false, stub: [10, 14] }],
+        [toConnectionKey("E2", "G")]: ["Bezier", { curviness: 78, alwaysRespectStubs: false, stub: [10, 14] }]
+    };
+    const getConnectorForPair = (fromId, toId) =>
+        connectionConnectorOverrides[toConnectionKey(fromId, toId)] || connectorSpec;
     const requiredConnectionSet = new Set(
         requiredConnectionPairs.map(([from, to]) => toConnectionKey(from, to))
     );
@@ -401,30 +387,56 @@ jsPlumb.ready(() => {
     };
 
     const guideAudioFiles = {
-        autoconnect_completed: "autoconnect-completed.mp3",
-        mcb_on: "mcb-on.mp3",
-        mcb_off_mid: "between-exp-mcb-off.mp3",
-        before_autotransformer: "before-connection-check-autotransformer.mp3",
-        readings_displayed: "after-autotransformer-on.mp3",
-        before_add_to_table: "before-adding-reading-add-to-table.mp3",
-        before_check: "before-connection-check-button.mp3",
-        before_mcb: "before-connection-mcb-click.mp3",
-        after_correct_check: "after-correct-check.mp3",
-        connections_intro: "connections-intro.mp3",
-        wrong_connection: "wrong-connection.mp3",
-        wrong_multiple: "multiple-wrong-connections.mp3",
-        all_connections_done: "guide-all-complete-conn.mp3",
-        mcb_off_before_remove: "turn-off-mcb-before-removing-conn.mp3",
-        reset: "reset.mp3",
-        print: "print.mp3",
-        after_sc_reading: "after-1st-reading-added-sc.mp3",
-        duplicate_reading: "duplicate-reading.mp3",
-        report: "report.mp3"
+        autoconnect_completed: "Autoconnect.wav",
+        mcb_on: "MCB ON.wav",
+        mcb_off_mid: "Between Exp. MCB OFF.wav",
+        before_autotransformer: "Before connection check, autotransformer.wav",
+        readings_displayed: "After the autotransformer is ON.wav",
+        before_add_to_table: "Before adding reading, Add To Table.wav",
+        before_check: "Before connection, check button.wav",
+        before_mcb: "Before connection, on-click MCB Alert.wav",
+        after_correct_check: "After making correct connections, check the button.wav",
+        connections_intro: "Connections.wav",
+        wrong_connection: "Wrong connection.wav",
+        wrong_multiple: "Multiple wrong connections.wav",
+        all_connections_done: "Guide all complete conn.wav",
+        mcb_off_before_remove: "Turn_off_mcb_before_removing conn.wav",
+        reset: "Reset.wav",
+        print: "Print.wav",
+        after_sc_reading: "After 1st reading, added (2).wav",
+        duplicate_reading: "After adding reading, Add To Table For Duplicate Reading.wav",
+        report: "Report.wav",
+        after_circuit_opened: "After the circuit opens in a new tab.wav",
+        connect_a_d: "Connect point A to point D.wav",
+        connect_b_e: "Connect point B to point E.wav",
+        connect_d_f: "Connect point D to point F.wav",
+        connect_e_g: "Connect point E to point G.wav",
+        connect_e_i: "Connect point E to point I.wav",
+        connect_d_p2: "Connect point D to point P2.wav",
+        connect_h_m: "Connect point H to point M.wav",
+        connect_c_l: "Connect point C to point L.wav",
+        connect_l_p1: "Connect point L to point P1.wav",
+        connect_v_p2: "Connect point V to point P2.wav",
+        connect_s1_k: "Connect point S1 to point K.wav",
+        connect_s2_j: "Connect point S2 to point J.wav"
+    };
+    const connectionPromptAudioKeys = {
+        [toConnectionKey("A", "D1")]: "connect_a_d",
+        [toConnectionKey("B", "E1")]: "connect_b_e",
+        [toConnectionKey("D2", "F")]: "connect_d_f",
+        [toConnectionKey("E2", "G")]: "connect_e_g",
+        [toConnectionKey("E2", "I")]: "connect_e_i",
+        [toConnectionKey("D2", "P2")]: "connect_d_p2",
+        [toConnectionKey("H", "M")]: "connect_h_m",
+        [toConnectionKey("C", "L")]: "connect_c_l",
+        [toConnectionKey("L", "P1")]: "connect_l_p1",
+        [toConnectionKey("V", "P2")]: "connect_v_p2",
+        [toConnectionKey("S1", "S2")]: "connect_s1_k"
     };
 
     const getGuideAudioSrc = (key) => {
         const file = guideAudioFiles[key];
-        return file ? `assets/audio/guide/${file}` : "";
+        return file ? encodeURI(`assets/audios/${file}`) : "";
     };
 
     const stopGuideAudio = () => {
@@ -473,8 +485,7 @@ jsPlumb.ready(() => {
     };
 
     const highlightTarget = (el) => {
-        if (!guideState.enabled || !el) return;
-        el.classList.add("ai-highlight-target");
+        return;
     };
 
     const highlightConnectionPair = (fromId, toId) => {
@@ -504,7 +515,6 @@ jsPlumb.ready(() => {
 
         clearGuideHighlights();
         if (!nextPair) {
-            highlightTarget(checkConnectionBtn);
             if (guideState.currentConnectionPrompt !== "all-done" || force) {
                 guideState.currentConnectionPrompt = "all-done";
                 playGuideAudio("all_connections_done");
@@ -517,8 +527,7 @@ jsPlumb.ready(() => {
         highlightConnectionPair(from, to);
         if (guideState.currentConnectionPrompt !== promptKey || force) {
             guideState.currentConnectionPrompt = promptKey;
-            playGuideAudio("connections_intro");
-            showStepAlert(`Connect point ${from} to point ${to}`, "AI Guide");
+            playGuideAudio(connectionPromptAudioKeys[toConnectionKey(from, to)]);
         }
     };
 
@@ -614,7 +623,7 @@ jsPlumb.ready(() => {
         aiGuideBtn.addEventListener("click", () => {
             guideState.enabled = true;
             guideState.currentConnectionPrompt = "";
-            guideAlert("Let’s connect the components.", "connections_intro");
+            playGuideAudio("connections_intro");
             updateGuideConnectionPrompt(true);
         });
     }
@@ -623,16 +632,14 @@ jsPlumb.ready(() => {
         mcbImage.addEventListener("click", () => {
             if (!guideState.enabled) return;
             clearGuideHighlights();
-            if (mcbOn) {
-                highlightTarget(autoKnob);
-            } else {
-                highlightTarget(mcbImage);
-            }
         });
     }
 
     instance.bind("connection", (info) => {
         connectionsVerified = false;
+        if (info.connection && info.sourceId && info.targetId) {
+            info.connection.setConnector(getConnectorForPair(info.sourceId, info.targetId));
+        }
         if (!guideState.enabled) return;
 
         const key = toConnectionKey(info.sourceId, info.targetId);
@@ -659,7 +666,7 @@ jsPlumb.ready(() => {
                     instance.connect({
                         source: sourceEndpoint,
                         target: targetEndpoint,
-                        connector: connectorSpec
+                        connector: getConnectorForPair(from, to)
                     });
                 });
             });
@@ -668,7 +675,6 @@ jsPlumb.ready(() => {
             guideAlert("Autoconnect completed. Click on the check button to verify the connections.", "autoconnect_completed");
             if (guideState.enabled) {
                 clearGuideHighlights();
-                highlightTarget(checkConnectionBtn);
             }
         });
     }
@@ -715,18 +721,16 @@ jsPlumb.ready(() => {
                 );
                 if (guideState.enabled) {
                     clearGuideHighlights();
-                    highlightTarget(mcbImage);
                 }
             } else {
                 connectionsVerified = false;
                 if (guideState.enabled) {
                     playGuideAudio(currentConnectionSet.size > 1 ? "wrong_multiple" : "wrong_connection");
-                }
-                showStepAlert(
-                    "Connections are incorrect.\nPlease go to Step 3, fix wrong wires, then check again."
-                );
-                if (guideState.enabled) {
                     updateGuideConnectionPrompt(true);
+                } else {
+                    showStepAlert(
+                        "Connections are incorrect.\nPlease go to Step 3, fix wrong wires, then check again."
+                    );
                 }
             }
         });
@@ -763,7 +767,6 @@ jsPlumb.ready(() => {
             if (guideState.enabled) {
                 playGuideAudio("after_sc_reading");
                 clearGuideHighlights();
-                highlightTarget(submitBtn);
             }
         });
     }
@@ -820,10 +823,12 @@ jsPlumb.ready(() => {
                 guideAlert("Please complete Step 6: add reading to the observation table.", "before_add_to_table");
                 return;
             }
+            sessionStorage.setItem("playEquivalentCircuitAudio", "1");
             window.location.href = "equivalent-circuit.html";
         });
     }
 
     addAllEndpoints();
 });
+
 

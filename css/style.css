@@ -568,13 +568,20 @@ button,
     height: auto;
     left: 47%;
     top: 36%;
-    transform: translate(-50%, -50%) rotate(var(--needle-angle));
     transform-origin: 82% 82%;
+    transform: translate(-50%, -50%) rotate(var(--needle-angle));
     pointer-events: none;
     z-index: 2;
     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
     transition: transform 0.35s ease;
 }
+
+.meter-wrapper:not(.ammeter-meter):not(.wattmeter-meter) .meter-needle {
+    left: 47.8%;
+    top: 36.4%;
+    transform-origin: 84% 84%;
+}
+
 .meter-dots {
     display: flex;
     justify-content: center;
@@ -843,15 +850,13 @@ button,
 }
 
 .ai-highlight-target {
-    position: relative;
-    z-index: 5;
-    outline: 3px solid rgba(64, 175, 255, 0.85);
-    outline-offset: 2px;
-    box-shadow: 0 0 0 3px rgba(64, 175, 255, 0.25), 0 0 18px rgba(64, 175, 255, 0.5);
-    animation: aiTargetPulse 1.1s ease-in-out infinite alternate;
+    position: static;
+    z-index: auto;
+    outline: none;
+    box-shadow: none;
+    animation: none;
 }
 
-.ai-highlight-port .dot,
 .ai-highlight-port .port-label {
     border-radius: 50%;
     box-shadow: 0 0 0 2px rgba(64, 175, 255, 0.95), 0 0 14px rgba(64, 175, 255, 0.65);
@@ -961,15 +966,24 @@ button,
 .auto-outer {
     width: 88%;
     position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: block;
 }
 
 /* Inner rotating knob */
 .auto-inner {
     width: 46%;
     position: absolute;
+    left: 50%;
+    top: 50%;
     cursor: pointer;
     transform-origin: 50% 50%;
-    transition: transform 0.45s ease;
+    transform: translate(-50%, -50%) rotate(0deg);
+    display: block;
+    transition: transform 1.8s ease-in-out;
+    will-change: transform;
 }
 
 /* Bottom Ports */
@@ -1114,13 +1128,25 @@ button,
 #labContainer .left-dots {
     left: 7%;
     top: 4%;
-    bottom: -6%;
+    bottom: 4%;
 }
 
 #labContainer .right-dots {
     right: 7%;
     top: 4%;
-    bottom: -6%;
+    bottom: 4%;
+}
+
+#P2 .port-label,
+#S2 .port-label {
+    order: -1;
+    margin-top: 0; 
+     margin-bottom: -2px;
+}
+
+#P2,
+#S2 {
+    gap: 6px;
 }
 
 @media (max-width: 1600px) {
@@ -1610,8 +1636,8 @@ th {
 
 .short-circuit-page .left-dots,
 .short-circuit-page .right-dots {
-    top: 4.5%;
-    bottom: -5%;
+    top: 4%;
+    bottom: 4%;
 }
 
 .short-circuit-page .bottom-mid-left .section-label {
@@ -1619,7 +1645,7 @@ th {
 }
 
 .short-auto-knob {
-    transform: rotate(0deg);
+    transform: translate(-50%, -50%) rotate(0deg);
 }
 
 .short-circuit-page .table-container {

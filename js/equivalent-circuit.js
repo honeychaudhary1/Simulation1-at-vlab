@@ -1,4 +1,11 @@
 const equivPrintBtn = document.getElementById("equivPrintBtn");
+const EQUIV_GUIDE_AUDIO = "assets/audios/After the circuit opens in a new tab.wav";
+
+if (sessionStorage.getItem("playEquivalentCircuitAudio") === "1") {
+    sessionStorage.removeItem("playEquivalentCircuitAudio");
+    const audio = new Audio(encodeURI(EQUIV_GUIDE_AUDIO));
+    audio.play().catch(() => {});
+}
 
 function printResultPdf() {
     const pdfPath = "assets/Result.pdf";
