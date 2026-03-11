@@ -14,9 +14,24 @@ const observationTbody = document.getElementById("observationTbody");
 
 const NEEDLE_START_ANGLE = -65;
 const NEEDLE_MCB_ON_ANGLE = 30;
-const NEEDLE_RUNNING_ANGLE = 32;
+const NEEDLE_END_ANGLE = 48;
 const KNOB_START_DEG = 0;
 const KNOB_RUNNING_DEG = 55;
+const OPEN_CIRCUIT_READING = {
+    voltmeter: 230,
+    ammeter: 0.9,
+    wattmeter: 50
+};
+const OPEN_CIRCUIT_SCALES = {
+    voltmeter: 300,
+    ammeter: 1.2,
+    wattmeter: 100
+};
+const OPEN_CIRCUIT_ANGLE_ADJUSTMENTS = {
+    voltmeter: 5,
+    ammeter: 5,
+    wattmeter: 5
+};
 
 const experiment = { 
     connectionsVerified: false,
@@ -87,6 +102,35 @@ function setNeedleAngle(angleDeg) {
     document.querySelectorAll(".meter-face").forEach((face) => {
         face.style.setProperty("--needle-angle", `${angleDeg}deg`);
     });
+}
+
+function setMeterNeedleAngle(selector, angleDeg) {
+    const face = document.querySelector(selector);
+    if (face) {
+        face.style.setProperty("--needle-angle", `${angleDeg}deg`);
+    }
+}
+
+function mapReadingToAngle(reading, maxReading) {
+    const safeMax = Math.max(maxReading, 1);
+    const clampedReading = Math.min(Math.max(reading, 0), safeMax);
+    const progress = clampedReading / safeMax;
+    return NEEDLE_START_ANGLE + progress * (NEEDLE_END_ANGLE - NEEDLE_START_ANGLE);
+}
+
+function showOpenCircuitReadings() {
+    setMeterNeedleAngle(
+        ".top-center .meter-wrapper:not(.ammeter-meter):not(.wattmeter-meter) .meter-face",
+        mapReadingToAngle(OPEN_CIRCUIT_READING.voltmeter, OPEN_CIRCUIT_SCALES.voltmeter) + OPEN_CIRCUIT_ANGLE_ADJUSTMENTS.voltmeter
+    );
+    setMeterNeedleAngle(
+        ".top-center .ammeter-meter .meter-face",
+        mapReadingToAngle(OPEN_CIRCUIT_READING.ammeter, OPEN_CIRCUIT_SCALES.ammeter) + OPEN_CIRCUIT_ANGLE_ADJUSTMENTS.ammeter
+    );
+    setMeterNeedleAngle(
+        ".top-center .wattmeter-meter .meter-face",
+        mapReadingToAngle(OPEN_CIRCUIT_READING.wattmeter, OPEN_CIRCUIT_SCALES.wattmeter) + OPEN_CIRCUIT_ANGLE_ADJUSTMENTS.wattmeter
+    );
 }
 
 function setKnobAngle(angleDeg) {
@@ -304,12 +348,12 @@ jsPlumb.ready(function () {
     instance.setContainer("labContainer");
 
     const requiredConnectionPairs = [
-        ["A", "D"],
-        ["B", "E"],
-        ["D", "F"],
-        ["E", "G"],
-        ["E", "I"],
-        ["D", "P2"],
+        ["A", "D1"],
+        ["B", "E1"],
+        ["D2", "F"],
+        ["E2", "G"],
+        ["E2", "I"],
+        ["D2", "P2"],
         ["H", "M"],
         ["C", "L"],
         ["L", "P1"],
@@ -693,7 +737,7 @@ jsPlumb.ready(function () {
 
             experiment.knobMoved = true;
             setKnobAngle(KNOB_RUNNING_DEG);
-            setNeedleAngle(NEEDLE_RUNNING_ANGLE);
+            showOpenCircuitReadings();
             if (guideState.enabled) {
                 playGuideAudio("readings_displayed");
                 clearGuideHighlights();

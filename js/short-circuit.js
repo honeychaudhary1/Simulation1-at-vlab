@@ -16,6 +16,22 @@ const KNOB_START_DEG = 0;
 const KNOB_RUNNING_DEG = 35;
 const NEEDLE_START_ANGLE = -65;
 const NEEDLE_MCB_ON_ANGLE = -42;
+const NEEDLE_END_ANGLE = 65;
+const SHORT_CIRCUIT_READING = {
+    voltmeter: 11,
+    ammeter: 4.5,
+    wattmeter: 37.5
+};
+const SHORT_CIRCUIT_SCALES = {
+    voltmeter: 300,
+    ammeter: 6,
+    wattmeter: 100
+};
+const SHORT_CIRCUIT_ANGLE_ADJUSTMENTS = {
+    voltmeter: 0,
+    ammeter: 0,
+    wattmeter: 0
+};
 let shortCircuitReadingAdded = false;
 let mcbOn = false;
 let knobOn = false;
@@ -96,6 +112,35 @@ function setNeedleAngle(angleDeg) {
     });
 }
 
+function setMeterNeedleAngle(selector, angleDeg) {
+    const face = document.querySelector(selector);
+    if (face) {
+        face.style.setProperty("--needle-angle", `${angleDeg}deg`);
+    }
+}
+
+function mapReadingToAngle(reading, maxReading) {
+    const safeMax = Math.max(maxReading, 1);
+    const clampedReading = Math.min(Math.max(reading, 0), safeMax);
+    const progress = clampedReading / safeMax;
+    return NEEDLE_START_ANGLE + progress * (NEEDLE_END_ANGLE - NEEDLE_START_ANGLE);
+}
+
+function showShortCircuitReadings() {
+    setMeterNeedleAngle(
+        ".top-center .meter-wrapper:not(.ammeter-meter):not(.wattmeter-meter) .meter-face",
+        mapReadingToAngle(SHORT_CIRCUIT_READING.voltmeter, SHORT_CIRCUIT_SCALES.voltmeter) + SHORT_CIRCUIT_ANGLE_ADJUSTMENTS.voltmeter
+    );
+    setMeterNeedleAngle(
+        ".top-center .ammeter-meter .meter-face",
+        mapReadingToAngle(SHORT_CIRCUIT_READING.ammeter, SHORT_CIRCUIT_SCALES.ammeter) + SHORT_CIRCUIT_ANGLE_ADJUSTMENTS.ammeter
+    );
+    setMeterNeedleAngle(
+        ".top-center .wattmeter-meter .meter-face",
+        mapReadingToAngle(SHORT_CIRCUIT_READING.wattmeter, SHORT_CIRCUIT_SCALES.wattmeter) + SHORT_CIRCUIT_ANGLE_ADJUSTMENTS.wattmeter
+    );
+}
+
 if (mcbImage) {
     setMcbState(false);
     setNeedleAngle(NEEDLE_START_ANGLE);
@@ -153,6 +198,11 @@ if (autoKnob) {
         knobOn = !knobOn;
         knobMoved = true;
         setKnobAngle(knobOn ? KNOB_RUNNING_DEG : KNOB_START_DEG);
+        if (knobOn) {
+            showShortCircuitReadings();
+        } else {
+            setNeedleAngle(NEEDLE_MCB_ON_ANGLE);
+        }
         if (window.aiGuideNotify && knobOn) {
             window.aiGuideNotify(
                 "The readings are now displayed on the voltmeter, ammeter, and wattmeter. Now, click on the add to table button to add the reading to the observation table.",
@@ -327,12 +377,12 @@ jsPlumb.ready(() => {
     instance.setContainer("shortLabContainer");
     const endpointMap = {};
     const requiredConnectionPairs = [
-        ["A", "D"],
-        ["B", "E"],
-        ["D", "F"],
-        ["E", "G"],
-        ["E", "I"],
-        ["D", "P2"],
+        ["A", "D1"],
+        ["B", "E1"],
+        ["D2", "F"],
+        ["E2", "G"],
+        ["E2", "I"],
+        ["D2", "P2"],
         ["H", "M"],
         ["C", "L"],
         ["L", "P1"],
