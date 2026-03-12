@@ -15,6 +15,8 @@ const submitBtn = document.getElementById("submitBtn");
 const KNOB_START_DEG = 0;
 const KNOB_RUNNING_DEG = 35;
 const NEEDLE_START_ANGLE = -65;
+const SHORT_CIRCUIT_REPORT_STORAGE_KEY = "shortCircuitReportData";
+const SHORT_CIRCUIT_START_TIME_KEY = "shortCircuitStartTime";
 const SHORT_CIRCUIT_NEEDLE_ANGLES = {
     voltmeter: -60.23,
     ammeter: 32.5,
@@ -25,6 +27,95 @@ let mcbOn = false;
 let knobOn = false;
 let knobMoved = false;
 let connectionsVerified = false;
+
+function ensureShortCircuitStartTime() {
+    if (!localStorage.getItem(SHORT_CIRCUIT_START_TIME_KEY)) {
+        localStorage.setItem(SHORT_CIRCUIT_START_TIME_KEY, new Date().toISOString());
+    }
+}
+
+function formatReportDate(date) {
+    return new Intl.DateTimeFormat("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+    }).format(date);
+}
+
+function formatReportTime(date) {
+    return new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true
+    }).format(date);
+}
+
+function formatDuration(ms) {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const parts = [];
+
+    if (hours) parts.push(`${hours} hr`);
+    if (minutes) parts.push(`${minutes} min`);
+    parts.push(`${seconds} sec`);
+
+    return parts.join(" ");
+}
+
+function getShortCircuitObservationRows() {
+    if (!observationTbody) return [];
+
+    return Array.from(observationTbody.querySelectorAll("tr")).map((row) => {
+        const cells = row.querySelectorAll("td");
+        return {
+            serialNo: cells[0]?.textContent?.trim() || "",
+            psc: cells[1]?.textContent?.trim() || "",
+            isc: cells[2]?.textContent?.trim() || "",
+            vsc: cells[3]?.textContent?.trim() || ""
+        };
+    });
+}
+
+function buildShortCircuitReportData() {
+    ensureShortCircuitStartTime();
+
+    const startIso = localStorage.getItem(SHORT_CIRCUIT_START_TIME_KEY) || new Date().toISOString();
+    const startTime = new Date(startIso);
+    const endTime = new Date();
+    const observationRows = getShortCircuitObservationRows();
+
+    return {
+        labName: "Electrical Machines Lab",
+        experimentTitle: "Determination of Transformer equivalent circuit from Open Circuit and Short Circuit Test.",
+        date: formatReportDate(endTime),
+        startTime: formatReportTime(startTime),
+        endTime: formatReportTime(endTime),
+        totalTimeSpent: formatDuration(endTime.getTime() - startTime.getTime()),
+        aim: "Determination of Transformer equivalent circuit from Open Circuit and Short Circuit Test.",
+        simulationSummary: "The required short circuit connections were completed and verified, the MCB was switched ON, the autotransformer was operated, and the short circuit readings were recorded in the observation table.",
+        components: [
+            "MCB",
+            "Autotransformer",
+            "Single Phase Transformer",
+            "AC Voltmeter",
+            "AC Ammeter",
+            "Wattmeter",
+            "Connecting Leads"
+        ],
+        observations: observationRows,
+        conclusion: observationRows.length
+            ? "The short circuit test was completed successfully and the recorded values can be used along with the open circuit test data to determine the transformer equivalent circuit."
+            : "No short circuit observation row was available at the time of report generation."
+    };
+}
+
+function saveShortCircuitReportData() {
+    const reportData = buildShortCircuitReportData();
+    localStorage.setItem(SHORT_CIRCUIT_REPORT_STORAGE_KEY, JSON.stringify(reportData));
+}
 
 function showStepAlert(message, title = "Instruction") {
     let overlay = document.getElementById("customAlertOverlay");
@@ -89,8 +180,16 @@ function setMcbState(on) {
     mcbImage.src = on ? "assets/images/mcbon.png" : "assets/images/mcboff.png";
 }
 
+function alertBeforeTurningOnMcb() {
+    showStepAlert("Please complete the previous steps first before turning ON the MCB.");
+    if (window.aiGuideNotify) {
+        window.aiGuideNotify("Make and check the connections before turning on the MCB.", "before_mcb", true);
+    }
+}
+
 function setKnobAngle(angleDeg) {
     if (!autoKnob) return;
+    autoKnob.classList.toggle("knob-rotated", angleDeg !== KNOB_START_DEG);
     autoKnob.style.transform = `translate(-50%, -50%) rotate(${angleDeg}deg)`;
 }
 
@@ -107,7 +206,14 @@ function setMeterNeedleAngle(selector, angleDeg) {
     }
 }
 
+function setNeedleMovedState(moved) {
+    document.querySelectorAll(".meter-face").forEach((face) => {
+        face.classList.toggle("needle-rotated", moved);
+    });
+}
+
 function showShortCircuitReadings() {
+    setNeedleMovedState(true);
     setMeterNeedleAngle(
         ".top-center .meter-wrapper:not(.ammeter-meter):not(.wattmeter-meter) .meter-face",
         SHORT_CIRCUIT_NEEDLE_ANGLES.voltmeter
@@ -128,11 +234,7 @@ if (mcbImage) {
 
     mcbImage.addEventListener("click", () => {
         if (!mcbOn && !connectionsVerified) {
-            if (window.aiGuideNotify) {
-                window.aiGuideNotify("Make and check the connections before turning on the MCB.", "before_mcb", true);
-            } else {
-                showStepAlert("Please make and verify correct connections first (Step 1 & 2).");
-            }
+            alertBeforeTurningOnMcb();
             return;
         }
 
@@ -142,6 +244,7 @@ if (mcbImage) {
             knobOn = false;
             knobMoved = false;
             setKnobAngle(KNOB_START_DEG);
+            setNeedleMovedState(false);
             setNeedleAngle(NEEDLE_START_ANGLE);
             if (window.aiGuideNotify) {
                 window.aiGuideNotify("You turned off the MCB. Turn it back on to continue the simulation.", "mcb_off_mid", true);
@@ -194,6 +297,7 @@ function resetObservationTable() {
         observationTbody.innerHTML = "";
     }
     shortCircuitReadingAdded = false;
+    localStorage.removeItem(SHORT_CIRCUIT_REPORT_STORAGE_KEY);
 }
 
 function setupComponentInfoTooltip(contentByKey) {
@@ -341,7 +445,7 @@ setupComponentInfoTooltip({
 jsPlumb.ready(() => {
     const connectorSpec = [
         "Bezier",
-        { curviness: 150, alwaysRespectStubs: false, stub: [10, 14] }
+        { curviness: 120, alwaysRespectStubs: false, stub: [10, 14] }
     ];
 
     const instance = jsPlumb.getInstance({
@@ -368,12 +472,12 @@ jsPlumb.ready(() => {
     const toConnectionKey = (node1, node2) =>
         [node1, node2].sort().join("--");
     const connectionConnectorOverrides = {
-        [toConnectionKey("H", "M")]: ["Bezier", { curviness: 58, alwaysRespectStubs: false, stub: [10, 14] }],
-        [toConnectionKey("C", "L")]: ["Bezier", { curviness: 45, alwaysRespectStubs: false, stub: [10, 14] }],
-        [toConnectionKey("S2", "J")]: ["Bezier", { curviness: 82, alwaysRespectStubs: false, stub: [10, 14] }],
-        [toConnectionKey("S1", "K")]: ["Bezier", { curviness: 72, alwaysRespectStubs: false, stub: [10, 14] }],
-        [toConnectionKey("P2", "V")]: ["Bezier", { curviness: 88, alwaysRespectStubs: false, stub: [10, 14] }],
-        [toConnectionKey("E2", "G")]: ["Bezier", { curviness: 78, alwaysRespectStubs: false, stub: [10, 14] }]
+        [toConnectionKey("H", "M")]: ["Bezier", { curviness: 48, alwaysRespectStubs: false, stub: [10, 14] }],
+        [toConnectionKey("C", "L")]: ["Bezier", { curviness: 38, alwaysRespectStubs: false, stub: [10, 14] }],
+        [toConnectionKey("S2", "J")]: ["Bezier", { curviness: 66, alwaysRespectStubs: false, stub: [10, 14] }],
+        [toConnectionKey("S1", "K")]: ["Bezier", { curviness: 58, alwaysRespectStubs: false, stub: [10, 14] }],
+        [toConnectionKey("P2", "V")]: ["Bezier", { curviness: 70, alwaysRespectStubs: false, stub: [10, 14] }],
+        [toConnectionKey("E2", "G")]: ["Bezier", { curviness: 62, alwaysRespectStubs: false, stub: [10, 14] }]
     };
     const getConnectorForPair = (fromId, toId) =>
         connectionConnectorOverrides[toConnectionKey(fromId, toId)] || connectorSpec;
@@ -782,7 +886,14 @@ jsPlumb.ready(() => {
 
     if (reportBtn) {
         reportBtn.addEventListener("click", () => {
+            if (!shortCircuitReadingAdded) {
+                guideAlert("Please complete the short circuit test and add the reading to the observation table first.", "before_add_to_table");
+                return;
+            }
+
+            saveShortCircuitReportData();
             guideAlert("Your report has been generated successfully. Click OK to view your report.", "report");
+            window.open("short-circuit-report.html", "_blank", "noopener,noreferrer");
         });
     }
 
@@ -795,8 +906,10 @@ jsPlumb.ready(() => {
             knobMoved = false;
             setMcbState(false);
             setKnobAngle(KNOB_START_DEG);
+            setNeedleMovedState(false);
             setNeedleAngle(NEEDLE_START_ANGLE);
             resetObservationTable();
+            localStorage.setItem(SHORT_CIRCUIT_START_TIME_KEY, new Date().toISOString());
             guideAlert("The simulation has been reset. You can start again.", "reset");
             clearGuideHighlights();
             stopGuideAudio();
@@ -829,6 +942,7 @@ jsPlumb.ready(() => {
     }
 
     addAllEndpoints();
+    ensureShortCircuitStartTime();
 });
 
 

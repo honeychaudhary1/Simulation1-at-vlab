@@ -14,12 +14,14 @@ const observationTbody = document.getElementById("observationTbody");
 
 const NEEDLE_START_ANGLE = -65;
 const OPEN_CIRCUIT_NEEDLE_ANGLES = {
-    voltmeter: 18.67,
+    voltmeter: 6.67,
     ammeter: -56,
     wattmeter: -48
 };
 const KNOB_START_DEG = 0;
-const KNOB_RUNNING_DEG = 195;
+const KNOB_RUNNING_DEG = 225;
+const OPEN_CIRCUIT_REPORT_STORAGE_KEY = "openCircuitReportData";
+const OPEN_CIRCUIT_START_TIME_KEY = "openCircuitStartTime";
 
 const experiment = { 
     connectionsVerified: false,
@@ -27,6 +29,96 @@ const experiment = {
     knobMoved: false,
     readingAdded: false
 };
+
+function ensureOpenCircuitStartTime() {
+    if (!localStorage.getItem(OPEN_CIRCUIT_START_TIME_KEY)) {
+        localStorage.setItem(OPEN_CIRCUIT_START_TIME_KEY, new Date().toISOString());
+    }
+}
+
+function formatReportDate(date) {
+    return new Intl.DateTimeFormat("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+    }).format(date);
+}
+
+function formatReportTime(date) {
+    return new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true
+    }).format(date);
+}
+
+function formatDuration(ms) {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const parts = [];
+
+    if (hours) parts.push(`${hours} hr`);
+    if (minutes) parts.push(`${minutes} min`);
+    parts.push(`${seconds} sec`);
+
+    return parts.join(" ");
+}
+
+function getOpenCircuitObservationRows() {
+    if (!observationTbody) return [];
+
+    return Array.from(observationTbody.querySelectorAll("tr")).map((row) => {
+        const cells = row.querySelectorAll("td");
+        return {
+            serialNo: cells[0]?.textContent?.trim() || "",
+            poc: cells[1]?.textContent?.trim() || "",
+            ioc: cells[2]?.textContent?.trim() || "",
+            voc: cells[3]?.textContent?.trim() || ""
+        };
+    });
+}
+
+function buildOpenCircuitReportData() {
+    ensureOpenCircuitStartTime();
+
+    const startIso = localStorage.getItem(OPEN_CIRCUIT_START_TIME_KEY) || new Date().toISOString();
+    const startTime = new Date(startIso);
+    const endTime = new Date();
+    const observationRows = getOpenCircuitObservationRows();
+
+    return {
+        labName: "Electrical Machines Lab",
+        experimentTitle: "Determination of Transformer equivalent circuit from Open Circuit and Short Circuit Test.",
+        date: formatReportDate(endTime),
+        startTime: formatReportTime(startTime),
+        endTime: formatReportTime(endTime),
+        totalTimeSpent: formatDuration(endTime.getTime() - startTime.getTime()),
+        aim: "Determination of the transformer equivalent circuit from the open circuit (OC) and short circuit (SC) test.",
+        simulationSummary: "The required connections were completed and verified, the MCB was switched ON, the autotransformer was operated, and the no-load readings were recorded in the observation table for the open circuit test.",
+        components: [
+            "MCB",
+            "Autotransformer",
+            "Single Phase Transformer",
+            "AC Voltmeter-1",
+            "AC Voltmeter-2",
+            "AC Ammeter",
+            "Wattmeter",
+            "Connecting Leads"
+        ],
+        observations: observationRows,
+        conclusion: observationRows.length
+            ? "The open circuit test was completed successfully and the observed no-load values were recorded for report generation."
+            : "No observation row was available at the time of report generation."
+    };
+}
+
+function saveOpenCircuitReportData() {
+    const reportData = buildOpenCircuitReportData();
+    localStorage.setItem(OPEN_CIRCUIT_REPORT_STORAGE_KEY, JSON.stringify(reportData));
+}
 
 function showStepAlert(message, title = "Instruction") {
     let overlay = document.getElementById("customAlertOverlay");
@@ -99,7 +191,14 @@ function setMeterNeedleAngle(selector, angleDeg) {
     }
 }
 
+function setNeedleMovedState(moved) {
+    document.querySelectorAll(".meter-face").forEach((face) => {
+        face.classList.toggle("needle-rotated", moved);
+    });
+}
+
 function showOpenCircuitReadings() {
+    setNeedleMovedState(true);
     setMeterNeedleAngle(
         ".top-center .meter-wrapper:not(.ammeter-meter):not(.wattmeter-meter) .meter-face",
         OPEN_CIRCUIT_NEEDLE_ANGLES.voltmeter
@@ -120,6 +219,7 @@ function showOpenCircuitReadings() {
 
 function setKnobAngle(angleDeg) {
     if (autoKnob) {
+        autoKnob.classList.toggle("knob-rotated", angleDeg !== KNOB_START_DEG);
         autoKnob.style.transform = `translate(-50%, -50%) rotate(${angleDeg}deg)`;
     }
 }
@@ -128,6 +228,13 @@ function setMcbState(on) {
     experiment.mcbOn = on;
     if (mcbImage) {
         mcbImage.src = on ? "assets/images/mcbon.png" : "assets/images/mcboff.png";
+    }
+}
+
+function alertBeforeTurningOnMcb() {
+    showStepAlert("Please complete the previous steps first before turning ON the MCB.");
+    if (window.aiGuideNotify) {
+        window.aiGuideNotify("Make and check the connections before turning on the MCB.", "before_mcb", true);
     }
 }
 
@@ -142,8 +249,10 @@ function resetStep4AndBeyond() {
     setMcbState(false);
     experiment.knobMoved = false;
     setKnobAngle(KNOB_START_DEG);
+    setNeedleMovedState(false);
     setNeedleAngle(NEEDLE_START_ANGLE);
     resetObservationTable();
+    localStorage.removeItem(OPEN_CIRCUIT_REPORT_STORAGE_KEY);
 }
 
 function setupComponentInfoTooltip(contentByKey) {
@@ -230,11 +339,7 @@ function setupComponentInfoTooltip(contentByKey) {
 if (mcbImage) {
     mcbImage.addEventListener("click", () => {
         if (!experiment.mcbOn && !experiment.connectionsVerified) {
-            if (window.aiGuideNotify) {
-                window.aiGuideNotify("Make and check the connections before turning on the MCB.", "before_mcb", true);
-            } else {
-                showStepAlert("Please make and verify correct connections first (Step 1 & 2).");
-            }
+            alertBeforeTurningOnMcb();
             return;
         }
 
@@ -321,7 +426,7 @@ setupComponentInfoTooltip({
 jsPlumb.ready(function () {
     const connectorSpec = [
         "Bezier",
-        { curviness: 150, alwaysRespectStubs: false, stub: [10, 14] }
+        { curviness: 120, alwaysRespectStubs: false, stub: [10, 14] }
     ];
 
     const instance = jsPlumb.getInstance({
@@ -350,12 +455,12 @@ jsPlumb.ready(function () {
     const toConnectionKey = (node1, node2) =>
         [node1, node2].sort().join("--");
     const connectionConnectorOverrides = {
-        [toConnectionKey("H", "M")]: ["Bezier", { curviness: 50, alwaysRespectStubs: false, stub: [10, 14] }],
-        [toConnectionKey("C", "L")]: ["Bezier", { curviness: 40, alwaysRespectStubs: false, stub: [10, 14] }],
-        [toConnectionKey("S2", "J")]: ["Bezier", { curviness: 62, alwaysRespectStubs: false, stub: [10, 14] }],
-        [toConnectionKey("S1", "K")]: ["Bezier", { curviness: 62, alwaysRespectStubs: false, stub: [10, 14] }],
-        [toConnectionKey("P2", "V")]: ["Bezier", { curviness: 68, alwaysRespectStubs: false, stub: [10, 14] }],
-        [toConnectionKey("E2", "G")]: ["Bezier", { curviness: 38, alwaysRespectStubs: false, stub: [10, 14] }]
+        [toConnectionKey("H", "M")]: ["Bezier", { curviness: 42, alwaysRespectStubs: false, stub: [10, 14] }],
+        [toConnectionKey("C", "L")]: ["Bezier", { curviness: 34, alwaysRespectStubs: false, stub: [10, 14] }],
+        [toConnectionKey("S2", "J")]: ["Bezier", { curviness: 52, alwaysRespectStubs: false, stub: [10, 14] }],
+        [toConnectionKey("S1", "K")]: ["Bezier", { curviness: 52, alwaysRespectStubs: false, stub: [10, 14] }],
+        [toConnectionKey("P2", "V")]: ["Bezier", { curviness: 58, alwaysRespectStubs: false, stub: [10, 14] }],
+        [toConnectionKey("E2", "G")]: ["Bezier", { curviness: 32, alwaysRespectStubs: false, stub: [10, 14] }]
     };
 
     const getConnectorForPair = (fromId, toId) =>
@@ -815,7 +920,14 @@ jsPlumb.ready(function () {
 
     if (reportBtn) {
         reportBtn.addEventListener("click", () => {
+            if (!experiment.readingAdded) {
+                guideAlert("Please complete the open circuit test and add the reading to the observation table first.", "before_add_to_table");
+                return;
+            }
+
+            saveOpenCircuitReportData();
             guideAlert("Your report has been generated successfully. Click OK to view your report.", "report");
+            window.open("open-circuit-report.html", "_blank", "noopener,noreferrer");
         });
     }
 
@@ -824,6 +936,7 @@ jsPlumb.ready(function () {
             instance.deleteEveryConnection();
             experiment.connectionsVerified = false;
             resetStep4AndBeyond();
+            localStorage.setItem(OPEN_CIRCUIT_START_TIME_KEY, new Date().toISOString());
             guideAlert("The simulation has been reset. You can start again.", "reset");
             clearGuideHighlights();
             stopGuideAudio();
@@ -832,5 +945,6 @@ jsPlumb.ready(function () {
             scheduleRepaint();
         });
     }
-});
 
+    ensureOpenCircuitStartTime();
+});

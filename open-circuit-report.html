@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Open Circuit Test Report</title>
+    <link rel="stylesheet" href="css/report.css" />
+  </head>
+  <body>
+    <main class="report-page">
+      <section class="report-shell">
+        <header class="report-header">
+          <div class="report-logo-wrap report-logo-left">
+            <img src="assets/images/IITlogo.png" alt="IIT Roorkee Logo" class="report-logo report-logo-iit" />
+          </div>
+          <div class="report-title-block">
+            <p class="report-kicker">Electrical Machines Lab</p>
+            <h1>Virtual Labs Simulation Report</h1>
+            <div class="report-header-line"></div>
+          </div>
+          <div class="report-logo-wrap report-logo-right">
+            <img src="assets/images/virtuallab.png" alt="Virtual Labs Logo" class="report-logo report-logo-vlab" />
+          </div>
+        </header>
+
+        <section class="report-card report-overview">
+          <div class="report-chip" id="labName">Electrical Machines Lab</div>
+          <p><strong>Experiment Title:</strong> <span id="experimentTitle"></span></p>
+          <p><strong>Date:</strong> <span id="reportDate"></span></p>
+
+          <div class="report-time-grid">
+            <div class="report-time-box">
+              <span class="label">Start Time</span>
+              <strong id="startTime"></strong>
+            </div>
+            <div class="report-time-box">
+              <span class="label">End Time</span>
+              <strong id="endTime"></strong>
+            </div>
+            <div class="report-time-box">
+              <span class="label">Total Time Spent</span>
+              <strong id="totalTimeSpent"></strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="report-card">
+          <h2>Summary</h2>
+          <h3>Aim</h3>
+          <p id="aimText"></p>
+          <h3>Simulation Summary</h3>
+          <p id="summaryText"></p>
+          <h3>Components and Key Parameters</h3>
+          <ul class="component-list" id="componentList"></ul>
+        </section>
+
+        <section class="report-card">
+          <h2>Observation Table</h2>
+          <div class="report-table-wrap">
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th>S.No.</th>
+                  <th>Poc (Watt)</th>
+                  <th>Ioc (A)</th>
+                  <th>Voc (V)</th>
+                </tr>
+              </thead>
+              <tbody id="reportObservationBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="report-card">
+          <h2>Conclusion</h2>
+          <p id="conclusionText"></p>
+        </section>
+
+        <div class="report-actions">
+          <button type="button" class="report-btn report-btn-secondary" id="reportBackBtn">Back</button>
+          <button type="button" class="report-btn" id="reportPrintBtn">Print</button>
+          <button type="button" class="report-btn report-btn-success" id="reportDownloadBtn">Download</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="js/open-circuit-report.js"></script>
+  </body>
+</html>

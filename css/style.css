@@ -582,6 +582,18 @@ button,
     transform-origin: 84% 84%;
 }
 
+.voltmeter-meter .meter-face.needle-rotated .meter-needle {
+    left: 49.05%;
+    top: 44.1%;
+    transform-origin: 81.2% 81.2%;
+}
+
+.wattmeter-meter .meter-face.needle-rotated .meter-needle {
+    left: 47%;
+    top: 36%;
+    transform-origin: 82% 82%;
+}
+
 .meter-dots {
     display: flex;
     justify-content: center;
@@ -976,14 +988,19 @@ button,
 .auto-inner {
     width: 46%;
     position: absolute;
-    left: 50%;
-    top: 50%;
+    left: 49.5%;
+    top: 48.75%;
     cursor: pointer;
     transform-origin: 50% 50%;
     transform: translate(-50%, -50%) rotate(0deg);
     display: block;
     transition: transform 1.8s ease-in-out;
     will-change: transform;
+}
+
+.auto-inner.knob-rotated {
+    left: 50.85%;
+    top: 45.85%;
 }
 
 /* Bottom Ports */
