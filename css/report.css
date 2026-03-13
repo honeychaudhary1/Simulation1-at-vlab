@@ -265,12 +265,20 @@ body {
         box-shadow: none;
     }
 
-    .report-actions {
+    .report-actions,
+    .report-actions * {
         display: none;
     }
 
     .report-card {
         break-inside: avoid;
         background: #fff;
+    }
+
+    .report-btn,
+    #reportPrintBtn,
+    #reportDownloadBtn,
+    #reportBackBtn {
+        display: none !important;
     }
 }

@@ -31,8 +31,8 @@ const experiment = {
 };
 
 function ensureOpenCircuitStartTime() {
-    if (!localStorage.getItem(OPEN_CIRCUIT_START_TIME_KEY)) {
-        localStorage.setItem(OPEN_CIRCUIT_START_TIME_KEY, new Date().toISOString());
+    if (!sessionStorage.getItem(OPEN_CIRCUIT_START_TIME_KEY)) {
+        sessionStorage.setItem(OPEN_CIRCUIT_START_TIME_KEY, new Date().toISOString());
     }
 }
 
@@ -84,7 +84,7 @@ function getOpenCircuitObservationRows() {
 function buildOpenCircuitReportData() {
     ensureOpenCircuitStartTime();
 
-    const startIso = localStorage.getItem(OPEN_CIRCUIT_START_TIME_KEY) || new Date().toISOString();
+    const startIso = sessionStorage.getItem(OPEN_CIRCUIT_START_TIME_KEY) || new Date().toISOString();
     const startTime = new Date(startIso);
     const endTime = new Date();
     const observationRows = getOpenCircuitObservationRows();
@@ -120,7 +120,7 @@ function saveOpenCircuitReportData() {
     localStorage.setItem(OPEN_CIRCUIT_REPORT_STORAGE_KEY, JSON.stringify(reportData));
 }
 
-function showStepAlert(message, title = "Instruction") {
+function showStepAlert(message, title = "Instruction", onClose = null) {
     let overlay = document.getElementById("customAlertOverlay");
     let titleEl;
     let messageEl;
@@ -146,6 +146,9 @@ function showStepAlert(message, title = "Instruction") {
 
     if (!titleEl || !messageEl || !okBtn) {
         alert(message);
+        if (typeof onClose === "function") {
+            onClose();
+        }
         return;
     }
 
@@ -158,6 +161,9 @@ function showStepAlert(message, title = "Instruction") {
         if (overlay.classList.contains("closing")) return;
         overlay.classList.add("closing");
         document.removeEventListener("keydown", onKeyDown);
+        if (typeof onClose === "function") {
+            onClose();
+        }
 
         const onCloseEnd = () => {
             overlay.classList.remove("show", "closing");
@@ -229,6 +235,7 @@ function setMcbState(on) {
     if (mcbImage) {
         mcbImage.src = on ? "assets/images/mcbon.png" : "assets/images/mcboff.png";
     }
+    refreshButtonStates();
 }
 
 function alertBeforeTurningOnMcb() {
@@ -243,6 +250,7 @@ function resetObservationTable() {
         observationTbody.innerHTML = "";
     }
     experiment.readingAdded = false;
+    refreshButtonStates();
 }
 
 function resetStep4AndBeyond() {
@@ -253,6 +261,21 @@ function resetStep4AndBeyond() {
     setNeedleAngle(NEEDLE_START_ANGLE);
     resetObservationTable();
     localStorage.removeItem(OPEN_CIRCUIT_REPORT_STORAGE_KEY);
+}
+
+function refreshButtonStates() {
+    if (checkConnectionBtn) {
+        checkConnectionBtn.disabled = experiment.mcbOn;
+    }
+    if (autoConnectBtn) {
+        autoConnectBtn.disabled = experiment.mcbOn;
+    }
+    if (addToTableBtn) {
+        addToTableBtn.disabled = !experiment.connectionsVerified || !experiment.mcbOn || !experiment.knobMoved || experiment.readingAdded;
+    }
+    if (shortCircuitBtn) {
+        shortCircuitBtn.disabled = !experiment.readingAdded;
+    }
 }
 
 function setupComponentInfoTooltip(contentByKey) {
@@ -474,6 +497,7 @@ jsPlumb.ready(function () {
         enabled: false,
         currentConnectionPrompt: "",
         audio: null,
+        audioSequenceId: 0,
         hasReading: false
     };
 
@@ -532,6 +556,7 @@ jsPlumb.ready(function () {
     };
 
     const stopGuideAudio = () => {
+        guideState.audioSequenceId += 1;
         if (guideState.audio) {
             guideState.audio.pause();
             guideState.audio.currentTime = 0;
@@ -543,16 +568,61 @@ jsPlumb.ready(function () {
         if (!guideState.enabled || !key) return;
         const src = getGuideAudioSrc(key);
         if (!src) return;
-        stopGuideAudio();
+        guideState.audioSequenceId += 1;
+        if (guideState.audio) {
+            guideState.audio.pause();
+            guideState.audio.currentTime = 0;
+            guideState.audio = null;
+        }
         const audio = new Audio(src);
         guideState.audio = audio;
         audio.play().catch(() => {});
     };
 
+    const playGuideAudioSequence = (keys) => {
+        if (!guideState.enabled) return;
+
+        const sequenceKeys = keys.filter(Boolean);
+        if (!sequenceKeys.length) return;
+
+        const sequenceId = guideState.audioSequenceId + 1;
+        guideState.audioSequenceId = sequenceId;
+
+        if (guideState.audio) {
+            guideState.audio.pause();
+            guideState.audio.currentTime = 0;
+            guideState.audio = null;
+        }
+
+        const playNext = (index) => {
+            if (guideState.audioSequenceId !== sequenceId || index >= sequenceKeys.length) {
+                return;
+            }
+
+            const src = getGuideAudioSrc(sequenceKeys[index]);
+            if (!src) {
+                playNext(index + 1);
+                return;
+            }
+
+            const audio = new Audio(src);
+            guideState.audio = audio;
+            audio.addEventListener("ended", () => {
+                if (guideState.audio === audio) {
+                    guideState.audio = null;
+                }
+                playNext(index + 1);
+            }, { once: true });
+            audio.play().catch(() => {});
+        };
+
+        playNext(0);
+    };
+
     const guideAlert = (message, audioKey = "") => {
         if (guideState.enabled) {
             if (audioKey) playGuideAudio(audioKey);
-            showStepAlert(message, "AI Guide");
+            showStepAlert(message, "AI Guide", stopGuideAudio);
             return;
         }
         showStepAlert(message);
@@ -562,7 +632,7 @@ jsPlumb.ready(function () {
         if (!guideState.enabled) return false;
         if (audioKey) playGuideAudio(audioKey);
         if (useAlert) {
-            showStepAlert(message, "AI Guide");
+            showStepAlert(message, "AI Guide", stopGuideAudio);
         }
         return true;
     };
@@ -598,7 +668,12 @@ jsPlumb.ready(function () {
         return set;
     };
 
-    const updateGuideConnectionPrompt = (force = false) => {
+    const getWrongActiveConnectionCount = () => {
+        const currentSet = getCurrentConnectionSet();
+        return [...currentSet].filter((key) => !requiredConnectionSet.has(key)).length;
+    };
+
+    const updateGuideConnectionPrompt = (force = false, playIntroFirst = false, prefixAudioKey = "") => {
         if (!guideState.enabled) return;
         const currentSet = getCurrentConnectionSet();
         const nextPair = requiredConnectionPairs.find(([from, to]) => {
@@ -607,6 +682,10 @@ jsPlumb.ready(function () {
 
         clearGuideHighlights();
         if (!nextPair) {
+            if (prefixAudioKey) {
+                playGuideAudio(prefixAudioKey);
+                return;
+            }
             if (guideState.currentConnectionPrompt !== "all-done" || force) {
                 guideState.currentConnectionPrompt = "all-done";
                 playGuideAudio("all_connections_done");
@@ -616,16 +695,26 @@ jsPlumb.ready(function () {
 
         const [from, to] = nextPair;
         const promptKey = `${from}-${to}`;
+        const audioKey = connectionPromptAudioKeys[toConnectionKey(from, to)];
         highlightConnectionPair(from, to);
         if (guideState.currentConnectionPrompt !== promptKey || force) {
             guideState.currentConnectionPrompt = promptKey;
-            playGuideAudio(connectionPromptAudioKeys[toConnectionKey(from, to)]);
+            if (playIntroFirst || prefixAudioKey) {
+                const sequenceKeys = [];
+                if (playIntroFirst) sequenceKeys.push("connections_intro");
+                if (prefixAudioKey) sequenceKeys.push(prefixAudioKey);
+                sequenceKeys.push(audioKey);
+                playGuideAudioSequence(sequenceKeys);
+            } else {
+                playGuideAudio(audioKey);
+            }
         }
     };
 
     function invalidateConnectionVerification() {
         experiment.connectionsVerified = false;
         resetStep4AndBeyond();
+        refreshButtonStates();
     }
 
     function addAllEndpoints() {
@@ -677,10 +766,7 @@ jsPlumb.ready(function () {
     }
 
     function detachNodeConnections(nodeId) {
-        if (experiment.mcbOn) {
-            guideAlert("Turn off the MCB before removing the connections.", "mcb_off_before_remove");
-            return;
-        }
+        const wasMcbOn = experiment.mcbOn;
 
         const outgoing = instance.getConnections({ source: nodeId });
         const incoming = instance.getConnections({ target: nodeId });
@@ -693,6 +779,10 @@ jsPlumb.ready(function () {
         uniqueConnections.forEach((connection) => {
             instance.deleteConnection(connection);
         });
+
+        if (wasMcbOn && uniqueConnections.size) {
+            guideAlert("Please complete the connections first.", "before_autotransformer");
+        }
     }
 
     document.querySelectorAll(".js-port .port-label").forEach((label) => {
@@ -713,7 +803,7 @@ jsPlumb.ready(function () {
 
         const key = toConnectionKey(info.sourceId, info.targetId);
         if (!requiredConnectionSet.has(key)) {
-            playGuideAudio("wrong_connection");
+            playGuideAudio(getWrongActiveConnectionCount() > 1 ? "wrong_multiple" : "wrong_connection");
         }
         updateGuideConnectionPrompt();
     });
@@ -746,8 +836,7 @@ jsPlumb.ready(function () {
         aiGuideBtn.addEventListener("click", () => {
             guideState.enabled = true;
             guideState.currentConnectionPrompt = "";
-            playGuideAudio("connections_intro");
-            updateGuideConnectionPrompt(true);
+            updateGuideConnectionPrompt(true, true);
         });
     }
 
@@ -781,6 +870,7 @@ jsPlumb.ready(function () {
             if (guideState.enabled) {
                 clearGuideHighlights();
             }
+            refreshButtonStates();
             scheduleRepaint();
         });
     }
@@ -830,32 +920,39 @@ jsPlumb.ready(function () {
                 }
             } else {
                 invalidateConnectionVerification();
-                const invalidCount = currentConnectionSet.size;
+                const extraConnections = [...currentConnectionSet].filter((key) => !requiredConnectionSet.has(key)).length;
+                const missingConnections = [...requiredConnectionSet].filter((key) => !currentConnectionSet.has(key)).length;
+                const wrongConnectionCount = Math.max(extraConnections, missingConnections, hasInvalidNodeId ? 1 : 0);
                 if (guideState.enabled) {
-                    playGuideAudio(invalidCount > 1 ? "wrong_multiple" : "wrong_connection");
-                    updateGuideConnectionPrompt(true);
+                    updateGuideConnectionPrompt(
+                        true,
+                        false,
+                        wrongConnectionCount > 1 ? "wrong_multiple" : "wrong_connection"
+                    );
                 } else {
                     showStepAlert(
                         "Connections are incorrect.\nPlease go to Step 3, fix wrong wires, then check again."
                     );
                 }
             }
+            refreshButtonStates();
         });
     }
 
     if (autoKnob) {
         autoKnob.addEventListener("click", () => {
             if (!experiment.connectionsVerified) {
-                guideAlert("Please complete the connections first or turn ON the MCB.", "before_autotransformer");
+                guideAlert("Please complete the connections first.", "before_autotransformer");
                 return;
             }
             if (!experiment.mcbOn) {
-                guideAlert("Please complete the connections first or turn ON the MCB.", "before_autotransformer");
+                guideAlert("Please turn ON the MCB first.", "before_autotransformer");
                 return;
             }
 
             experiment.knobMoved = true;
             setKnobAngle(KNOB_RUNNING_DEG);
+            refreshButtonStates();
             if (guideState.enabled) {
                 playGuideAudio("readings_displayed");
                 clearGuideHighlights();
@@ -887,9 +984,10 @@ jsPlumb.ready(function () {
             if (!observationTbody) return;
 
             const row = document.createElement("tr");
-            row.innerHTML = "<td>1</td><td>50</td><td>0.9</td><td>230</td>";
+            row.innerHTML = "<td>1</td><td>230</td><td>0.9</td><td>50</td>";
             observationTbody.appendChild(row);
             experiment.readingAdded = true;
+            refreshButtonStates();
             showStepAlert("Reading added to observation table.");
             if (guideState.enabled) {
                 guideState.hasReading = true;
@@ -925,9 +1023,28 @@ jsPlumb.ready(function () {
                 return;
             }
 
-            saveOpenCircuitReportData();
-            guideAlert("Your report has been generated successfully. Click OK to view your report.", "report");
-            window.open("open-circuit-report.html", "_blank", "noopener,noreferrer");
+            if (guideState.enabled) {
+                playGuideAudio("report");
+                showStepAlert(
+                    "Your report has been generated successfully. Click OK to view your report.",
+                    "AI Guide",
+                    () => {
+                        stopGuideAudio();
+                        saveOpenCircuitReportData();
+                        window.open("open-circuit-report.html", "_blank", "noopener,noreferrer");
+                    }
+                );
+                return;
+            }
+
+            showStepAlert(
+                "Your report has been generated successfully. Click OK to view your report.",
+                "Instruction",
+                () => {
+                    saveOpenCircuitReportData();
+                    window.open("open-circuit-report.html", "_blank", "noopener,noreferrer");
+                }
+            );
         });
     }
 
@@ -936,15 +1053,18 @@ jsPlumb.ready(function () {
             instance.deleteEveryConnection();
             experiment.connectionsVerified = false;
             resetStep4AndBeyond();
-            localStorage.setItem(OPEN_CIRCUIT_START_TIME_KEY, new Date().toISOString());
+            sessionStorage.setItem(OPEN_CIRCUIT_START_TIME_KEY, new Date().toISOString());
             guideAlert("The simulation has been reset. You can start again.", "reset");
             clearGuideHighlights();
             stopGuideAudio();
             guideState.currentConnectionPrompt = "";
             guideState.hasReading = false;
+            refreshButtonStates();
             scheduleRepaint();
         });
     }
 
+    localStorage.removeItem(OPEN_CIRCUIT_START_TIME_KEY);
     ensureOpenCircuitStartTime();
+    refreshButtonStates();
 });

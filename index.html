@@ -134,7 +134,7 @@
           <button class="control-btn" id="aiGuideBtn">AI GUIDE</button>
           <button class="control-btn" id="checkConnectionBtn">CHECK</button>
           <button class="control-btn" id="autoConnectBtn">AUTO CONNECT</button>
-          <button class="control-btn" id="addToTableBtn">ADD TO TABLE</button>
+          <button class="control-btn" id="addToTableBtn" disabled>ADD TO TABLE</button>
           <button class="control-btn" id="resetBtn">RESET</button>
           <button class="control-btn" id="printBtn">PRINT</button>
           <button class="control-btn" id="reportBtn">REPORT</button>
@@ -328,9 +328,9 @@
                 <thead>
                   <tr>
                     <th>S.No.</th>
-                    <th>Poc (Watt)</th>
-                    <th>Ioc (A)</th>
                     <th>Voc (V)</th>
+                    <th>Ioc (A)</th>
+                    <th>Poc (W)</th>
                   </tr>
                 </thead>
                 <tbody id="observationTbody">
@@ -340,7 +340,7 @@
             </div>
           </div>
           <div class="short-test-wrapper">
-            <button class="dark-btn" id="shortCircuitBtn">SHORT CIRCUIT TEST</button>
+            <button class="dark-btn" id="shortCircuitBtn" disabled>SHORT CIRCUIT TEST</button>
           </div>
         </div>
       </div>

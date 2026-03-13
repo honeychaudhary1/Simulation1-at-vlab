@@ -13,8 +13,7 @@ const fieldIds = {
     observationBody: document.getElementById("reportObservationBody"),
     conclusionText: document.getElementById("conclusionText"),
     printBtn: document.getElementById("reportPrintBtn"),
-    downloadBtn: document.getElementById("reportDownloadBtn"),
-    backBtn: document.getElementById("reportBackBtn")
+    downloadBtn: document.getElementById("reportDownloadBtn")
 };
 
 function readReportData() {
@@ -75,9 +74,9 @@ function populateReport(reportData) {
             const tr = document.createElement("tr");
             tr.innerHTML = `
                 <td>${row.serialNo || ""}</td>
-                <td>${row.psc || ""}</td>
-                <td>${row.isc || ""}</td>
                 <td>${row.vsc || ""}</td>
+                <td>${row.isc || ""}</td>
+                <td>${row.psc || ""}</td>
             `;
             fieldIds.observationBody.appendChild(tr);
         });
@@ -116,11 +115,5 @@ if (fieldIds.printBtn) {
 if (fieldIds.downloadBtn) {
     fieldIds.downloadBtn.addEventListener("click", () => {
         downloadReportHtml();
-    });
-}
-
-if (fieldIds.backBtn) {
-    fieldIds.backBtn.addEventListener("click", () => {
-        window.location.href = "short-circuit.html";
     });
 }

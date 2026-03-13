@@ -29,8 +29,8 @@ let knobMoved = false;
 let connectionsVerified = false;
 
 function ensureShortCircuitStartTime() {
-    if (!localStorage.getItem(SHORT_CIRCUIT_START_TIME_KEY)) {
-        localStorage.setItem(SHORT_CIRCUIT_START_TIME_KEY, new Date().toISOString());
+    if (!sessionStorage.getItem(SHORT_CIRCUIT_START_TIME_KEY)) {
+        sessionStorage.setItem(SHORT_CIRCUIT_START_TIME_KEY, new Date().toISOString());
     }
 }
 
@@ -82,7 +82,7 @@ function getShortCircuitObservationRows() {
 function buildShortCircuitReportData() {
     ensureShortCircuitStartTime();
 
-    const startIso = localStorage.getItem(SHORT_CIRCUIT_START_TIME_KEY) || new Date().toISOString();
+    const startIso = sessionStorage.getItem(SHORT_CIRCUIT_START_TIME_KEY) || new Date().toISOString();
     const startTime = new Date(startIso);
     const endTime = new Date();
     const observationRows = getShortCircuitObservationRows();
@@ -117,7 +117,7 @@ function saveShortCircuitReportData() {
     localStorage.setItem(SHORT_CIRCUIT_REPORT_STORAGE_KEY, JSON.stringify(reportData));
 }
 
-function showStepAlert(message, title = "Instruction") {
+function showStepAlert(message, title = "Instruction", onClose = null) {
     let overlay = document.getElementById("customAlertOverlay");
     let titleEl;
     let messageEl;
@@ -143,6 +143,9 @@ function showStepAlert(message, title = "Instruction") {
 
     if (!titleEl || !messageEl || !okBtn) {
         alert(message);
+        if (typeof onClose === "function") {
+            onClose();
+        }
         return;
     }
 
@@ -155,6 +158,9 @@ function showStepAlert(message, title = "Instruction") {
         if (overlay.classList.contains("closing")) return;
         overlay.classList.add("closing");
         document.removeEventListener("keydown", onKeyDown);
+        if (typeof onClose === "function") {
+            onClose();
+        }
 
         const onCloseEnd = () => {
             overlay.classList.remove("show", "closing");
@@ -178,6 +184,7 @@ function showStepAlert(message, title = "Instruction") {
 function setMcbState(on) {
     if (!mcbImage) return;
     mcbImage.src = on ? "assets/images/mcbon.png" : "assets/images/mcboff.png";
+    refreshButtonStates();
 }
 
 function alertBeforeTurningOnMcb() {
@@ -252,6 +259,7 @@ if (mcbImage) {
             return;
         }
         showShortCircuitReadings();
+        refreshButtonStates();
         if (window.aiGuideNotify) {
             window.aiGuideNotify("MCB has been turned ON. Now click on the autotransformer knob.", "mcb_on", true);
         }
@@ -264,17 +272,17 @@ if (autoKnob) {
     autoKnob.addEventListener("click", () => {
         if (!connectionsVerified) {
             if (window.aiGuideNotify) {
-                window.aiGuideNotify("Please complete the connections first or turn ON the MCB.", "before_autotransformer", true);
+                window.aiGuideNotify("Please complete the connections first.", "before_autotransformer", true);
             } else {
-                showStepAlert("Please verify connections first using CHECK.");
+                showStepAlert("Please complete the connections first.");
             }
             return;
         }
         if (!mcbOn) {
             if (window.aiGuideNotify) {
-                window.aiGuideNotify("Please complete the connections first or turn ON the MCB.", "before_autotransformer", true);
+                window.aiGuideNotify("Please turn ON the MCB first.", "before_autotransformer", true);
             } else {
-                showStepAlert("Please switch ON the MCB first (Step 4).");
+                showStepAlert("Please turn ON the MCB first.");
             }
             return;
         }
@@ -282,6 +290,7 @@ if (autoKnob) {
         knobOn = !knobOn;
         knobMoved = true;
         setKnobAngle(knobOn ? KNOB_RUNNING_DEG : KNOB_START_DEG);
+        refreshButtonStates();
         if (window.aiGuideNotify && knobOn) {
             window.aiGuideNotify(
                 "The readings are now displayed on the voltmeter, ammeter, and wattmeter. Now, click on the add to table button to add the reading to the observation table.",
@@ -298,6 +307,22 @@ function resetObservationTable() {
     }
     shortCircuitReadingAdded = false;
     localStorage.removeItem(SHORT_CIRCUIT_REPORT_STORAGE_KEY);
+    refreshButtonStates();
+}
+
+function refreshButtonStates() {
+    if (checkConnectionBtn) {
+        checkConnectionBtn.disabled = mcbOn;
+    }
+    if (autoConnectBtn) {
+        autoConnectBtn.disabled = mcbOn;
+    }
+    if (addToTableBtn) {
+        addToTableBtn.disabled = !connectionsVerified || !mcbOn || !knobOn || shortCircuitReadingAdded;
+    }
+    if (submitBtn) {
+        submitBtn.disabled = !shortCircuitReadingAdded;
+    }
 }
 
 function setupComponentInfoTooltip(contentByKey) {
@@ -487,7 +512,8 @@ jsPlumb.ready(() => {
     const guideState = {
         enabled: false,
         currentConnectionPrompt: "",
-        audio: null
+        audio: null,
+        audioSequenceId: 0
     };
 
     const guideAudioFiles = {
@@ -544,6 +570,7 @@ jsPlumb.ready(() => {
     };
 
     const stopGuideAudio = () => {
+        guideState.audioSequenceId += 1;
         if (guideState.audio) {
             guideState.audio.pause();
             guideState.audio.currentTime = 0;
@@ -555,16 +582,61 @@ jsPlumb.ready(() => {
         if (!guideState.enabled || !key) return;
         const src = getGuideAudioSrc(key);
         if (!src) return;
-        stopGuideAudio();
+        guideState.audioSequenceId += 1;
+        if (guideState.audio) {
+            guideState.audio.pause();
+            guideState.audio.currentTime = 0;
+            guideState.audio = null;
+        }
         const audio = new Audio(src);
         guideState.audio = audio;
         audio.play().catch(() => {});
     };
 
+    const playGuideAudioSequence = (keys) => {
+        if (!guideState.enabled) return;
+
+        const sequenceKeys = keys.filter(Boolean);
+        if (!sequenceKeys.length) return;
+
+        const sequenceId = guideState.audioSequenceId + 1;
+        guideState.audioSequenceId = sequenceId;
+
+        if (guideState.audio) {
+            guideState.audio.pause();
+            guideState.audio.currentTime = 0;
+            guideState.audio = null;
+        }
+
+        const playNext = (index) => {
+            if (guideState.audioSequenceId !== sequenceId || index >= sequenceKeys.length) {
+                return;
+            }
+
+            const src = getGuideAudioSrc(sequenceKeys[index]);
+            if (!src) {
+                playNext(index + 1);
+                return;
+            }
+
+            const audio = new Audio(src);
+            guideState.audio = audio;
+            audio.addEventListener("ended", () => {
+                if (guideState.audio === audio) {
+                    guideState.audio = null;
+                }
+                playNext(index + 1);
+            }, { once: true });
+            audio.play().catch(() => {});
+        };
+
+        playNext(0);
+    };
+
     const guideAlert = (message, audioKey = "") => {
         if (guideState.enabled) {
             if (audioKey) playGuideAudio(audioKey);
-            showStepAlert(message, "AI Guide");
+            showStepAlert(message, "AI Guide", stopGuideAudio);
             return;
         }
         showStepAlert(message);
@@ -574,7 +646,7 @@ jsPlumb.ready(() => {
         if (!guideState.enabled) return false;
         if (audioKey) playGuideAudio(audioKey);
         if (useAlert) {
-            showStepAlert(message, "AI Guide");
+            showStepAlert(message, "AI Guide", stopGuideAudio);
         }
         return true;
     };
@@ -610,7 +682,12 @@ jsPlumb.ready(() => {
         return set;
     };
 
-    const updateGuideConnectionPrompt = (force = false) => {
+    const getWrongActiveConnectionCount = () => {
+        const currentSet = getCurrentConnectionSet();
+        return [...currentSet].filter((key) => !requiredConnectionSet.has(key)).length;
+    };
+
+    const updateGuideConnectionPrompt = (force = false, playIntroFirst = false, prefixAudioKey = "") => {
         if (!guideState.enabled) return;
         const currentSet = getCurrentConnectionSet();
         const nextPair = requiredConnectionPairs.find(([from, to]) => {
@@ -619,6 +696,10 @@ jsPlumb.ready(() => {
 
         clearGuideHighlights();
         if (!nextPair) {
+            if (prefixAudioKey) {
+                playGuideAudio(prefixAudioKey);
+                return;
+            }
             if (guideState.currentConnectionPrompt !== "all-done" || force) {
                 guideState.currentConnectionPrompt = "all-done";
                 playGuideAudio("all_connections_done");
@@ -628,10 +709,19 @@ jsPlumb.ready(() => {
 
         const [from, to] = nextPair;
         const promptKey = `${from}-${to}`;
+        const audioKey = connectionPromptAudioKeys[toConnectionKey(from, to)];
         highlightConnectionPair(from, to);
         if (guideState.currentConnectionPrompt !== promptKey || force) {
             guideState.currentConnectionPrompt = promptKey;
-            playGuideAudio(connectionPromptAudioKeys[toConnectionKey(from, to)]);
+            if (playIntroFirst || prefixAudioKey) {
+                const sequenceKeys = [];
+                if (playIntroFirst) sequenceKeys.push("connections_intro");
+                if (prefixAudioKey) sequenceKeys.push(prefixAudioKey);
+                sequenceKeys.push(audioKey);
+                playGuideAudioSequence(sequenceKeys);
+            } else {
+                playGuideAudio(audioKey);
+            }
         }
     };
 
@@ -681,10 +771,7 @@ jsPlumb.ready(() => {
     }
 
     function detachNodeConnections(nodeId) {
-        if (mcbOn) {
-            guideAlert("Turn off the MCB before removing the connections.", "mcb_off_before_remove");
-            return;
-        }
+        const wasMcbOn = mcbOn;
 
         const outgoing = instance.getConnections({ source: nodeId });
         const incoming = instance.getConnections({ target: nodeId });
@@ -697,6 +784,10 @@ jsPlumb.ready(() => {
         uniqueConnections.forEach((connection) => {
             instance.deleteConnection(connection);
         });
+
+        if (wasMcbOn && uniqueConnections.size) {
+            guideAlert("Please complete the connections first.", "before_autotransformer");
+        }
     }
 
     document.querySelectorAll(".js-port .port-label").forEach((label) => {
@@ -727,8 +818,7 @@ jsPlumb.ready(() => {
         aiGuideBtn.addEventListener("click", () => {
             guideState.enabled = true;
             guideState.currentConnectionPrompt = "";
-            playGuideAudio("connections_intro");
-            updateGuideConnectionPrompt(true);
+            updateGuideConnectionPrompt(true, true);
         });
     }
 
@@ -748,12 +838,14 @@ jsPlumb.ready(() => {
 
         const key = toConnectionKey(info.sourceId, info.targetId);
         if (!requiredConnectionSet.has(key)) {
-            playGuideAudio("wrong_connection");
+            playGuideAudio(getWrongActiveConnectionCount() > 1 ? "wrong_multiple" : "wrong_connection");
         }
+        refreshButtonStates();
         updateGuideConnectionPrompt();
     });
     instance.bind("connectionDetached", () => {
         connectionsVerified = false;
+        refreshButtonStates();
         updateGuideConnectionPrompt(true);
     });
 
@@ -780,6 +872,7 @@ jsPlumb.ready(() => {
             if (guideState.enabled) {
                 clearGuideHighlights();
             }
+            refreshButtonStates();
         });
     }
 
@@ -828,15 +921,22 @@ jsPlumb.ready(() => {
                 }
             } else {
                 connectionsVerified = false;
+                const extraConnections = [...currentConnectionSet].filter((key) => !requiredConnectionSet.has(key)).length;
+                const missingConnections = [...requiredConnectionSet].filter((key) => !currentConnectionSet.has(key)).length;
+                const wrongConnectionCount = Math.max(extraConnections, missingConnections, hasInvalidNodeId ? 1 : 0);
                 if (guideState.enabled) {
-                    playGuideAudio(currentConnectionSet.size > 1 ? "wrong_multiple" : "wrong_connection");
-                    updateGuideConnectionPrompt(true);
+                    updateGuideConnectionPrompt(
+                        true,
+                        false,
+                        wrongConnectionCount > 1 ? "wrong_multiple" : "wrong_connection"
+                    );
                 } else {
                     showStepAlert(
                         "Connections are incorrect.\nPlease go to Step 3, fix wrong wires, then check again."
                     );
                 }
             }
+            refreshButtonStates();
         });
     }
 
@@ -864,9 +964,10 @@ jsPlumb.ready(() => {
             }
 
             const row = document.createElement("tr");
-            row.innerHTML = "<td>1</td><td>37.5</td><td>4.5</td><td>11</td>";
+            row.innerHTML = "<td>1</td><td>11</td><td>4.5</td><td>37.5</td>";
             observationTbody.appendChild(row);
             shortCircuitReadingAdded = true;
+            refreshButtonStates();
             showStepAlert("Reading added to observation table.");
             if (guideState.enabled) {
                 playGuideAudio("after_sc_reading");
@@ -891,9 +992,28 @@ jsPlumb.ready(() => {
                 return;
             }
 
-            saveShortCircuitReportData();
-            guideAlert("Your report has been generated successfully. Click OK to view your report.", "report");
-            window.open("short-circuit-report.html", "_blank", "noopener,noreferrer");
+            if (guideState.enabled) {
+                playGuideAudio("report");
+                showStepAlert(
+                    "Your report has been generated successfully. Click OK to view your report.",
+                    "AI Guide",
+                    () => {
+                        stopGuideAudio();
+                        saveShortCircuitReportData();
+                        window.open("short-circuit-report.html", "_blank", "noopener,noreferrer");
+                    }
+                );
+                return;
+            }
+
+            showStepAlert(
+                "Your report has been generated successfully. Click OK to view your report.",
+                "Instruction",
+                () => {
+                    saveShortCircuitReportData();
+                    window.open("short-circuit-report.html", "_blank", "noopener,noreferrer");
+                }
+            );
         });
     }
 
@@ -909,11 +1029,12 @@ jsPlumb.ready(() => {
             setNeedleMovedState(false);
             setNeedleAngle(NEEDLE_START_ANGLE);
             resetObservationTable();
-            localStorage.setItem(SHORT_CIRCUIT_START_TIME_KEY, new Date().toISOString());
+            sessionStorage.setItem(SHORT_CIRCUIT_START_TIME_KEY, new Date().toISOString());
             guideAlert("The simulation has been reset. You can start again.", "reset");
             clearGuideHighlights();
             stopGuideAudio();
             guideState.currentConnectionPrompt = "";
+            refreshButtonStates();
             scheduleRepaint();
         });
     }
@@ -937,12 +1058,14 @@ jsPlumb.ready(() => {
                 return;
             }
             sessionStorage.setItem("playEquivalentCircuitAudio", "1");
-            window.location.href = "equivalent-circuit.html";
+            window.open("equivalent-circuit.html", "_blank", "noopener,noreferrer");
         });
     }
 
     addAllEndpoints();
+    localStorage.removeItem(SHORT_CIRCUIT_START_TIME_KEY);
     ensureShortCircuitStartTime();
+    refreshButtonStates();
 });
 
 
