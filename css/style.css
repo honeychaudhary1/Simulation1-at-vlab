@@ -588,6 +588,12 @@ button,
     transform-origin: 81.2% 81.2%;
 }
 
+.short-circuit-page .voltmeter-meter .meter-face.needle-rotated .meter-needle {
+    left: 47.8%;
+    top: 36.4%;
+    transform-origin: 84% 84%;
+}
+
 .wattmeter-meter .meter-face.needle-rotated .meter-needle {
     left: 47%;
     top: 36%;

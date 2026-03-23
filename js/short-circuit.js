@@ -13,15 +13,15 @@ const reportBtn = document.getElementById("reportBtn");
 const submitBtn = document.getElementById("submitBtn");
 
 const KNOB_START_DEG = 0;
-const KNOB_RUNNING_DEG = 35;
+const KNOB_RUNNING_DEG = 10;
 const NEEDLE_START_ANGLE = -65;
+const OPEN_CIRCUIT_NEEDLE_ANGLES = {
+    voltmeter: -54,
+    ammeter: -42,
+    wattmeter: -52
+};
 const SHORT_CIRCUIT_REPORT_STORAGE_KEY = "shortCircuitReportData";
 const SHORT_CIRCUIT_START_TIME_KEY = "shortCircuitStartTime";
-const SHORT_CIRCUIT_NEEDLE_ANGLES = {
-    voltmeter: -60.23,
-    ammeter: 32.5,
-    wattmeter: -16.25
-};
 let shortCircuitReadingAdded = false;
 let mcbOn = false;
 let knobOn = false;
@@ -182,6 +182,7 @@ function showStepAlert(message, title = "Instruction", onClose = null) {
 }
 
 function setMcbState(on) {
+    mcbOn = on;
     if (!mcbImage) return;
     mcbImage.src = on ? "assets/images/mcbon.png" : "assets/images/mcboff.png";
     refreshButtonStates();
@@ -223,16 +224,26 @@ function showShortCircuitReadings() {
     setNeedleMovedState(true);
     setMeterNeedleAngle(
         ".top-center .meter-wrapper:not(.ammeter-meter):not(.wattmeter-meter) .meter-face",
-        SHORT_CIRCUIT_NEEDLE_ANGLES.voltmeter
+        OPEN_CIRCUIT_NEEDLE_ANGLES.voltmeter
     );
     setMeterNeedleAngle(
         ".top-center .ammeter-meter .meter-face",
-        SHORT_CIRCUIT_NEEDLE_ANGLES.ammeter
+        OPEN_CIRCUIT_NEEDLE_ANGLES.ammeter
     );
     setMeterNeedleAngle(
         ".top-center .wattmeter-meter .meter-face",
-        SHORT_CIRCUIT_NEEDLE_ANGLES.wattmeter
+        OPEN_CIRCUIT_NEEDLE_ANGLES.wattmeter
     );
+}
+
+function resetStep4AndBeyond() {
+    setMcbState(false);
+    knobOn = false;
+    knobMoved = false;
+    setKnobAngle(KNOB_START_DEG);
+    setNeedleMovedState(false);
+    setNeedleAngle(NEEDLE_START_ANGLE);
+    resetObservationTable();
 }
 
 if (mcbImage) {
@@ -245,8 +256,8 @@ if (mcbImage) {
             return;
         }
 
-        mcbOn = !mcbOn;
-        setMcbState(mcbOn);
+        const nextState = !mcbOn;
+        setMcbState(nextState);
         if (!mcbOn) {
             knobOn = false;
             knobMoved = false;
@@ -725,6 +736,17 @@ jsPlumb.ready(() => {
         }
     };
 
+    function invalidateConnectionVerification(showAlert = false) {
+        const wasCircuitActive = mcbOn || knobOn || knobMoved;
+        connectionsVerified = false;
+        resetStep4AndBeyond();
+        refreshButtonStates();
+
+        if (showAlert && wasCircuitActive) {
+            guideAlert("Please make the correct connections first.");
+        }
+    }
+
     function addAllEndpoints() {
         instance.batch(() => {
             instance.deleteEveryEndpoint();
@@ -771,8 +793,6 @@ jsPlumb.ready(() => {
     }
 
     function detachNodeConnections(nodeId) {
-        const wasMcbOn = mcbOn;
-
         const outgoing = instance.getConnections({ source: nodeId });
         const incoming = instance.getConnections({ target: nodeId });
         const uniqueConnections = new Map();
@@ -784,10 +804,6 @@ jsPlumb.ready(() => {
         uniqueConnections.forEach((connection) => {
             instance.deleteConnection(connection);
         });
-
-        if (wasMcbOn && uniqueConnections.size) {
-            guideAlert("Please complete the connections first.", "before_autotransformer");
-        }
     }
 
     document.querySelectorAll(".js-port .port-label").forEach((label) => {
@@ -830,7 +846,7 @@ jsPlumb.ready(() => {
     }
 
     instance.bind("connection", (info) => {
-        connectionsVerified = false;
+        invalidateConnectionVerification(true);
         if (info.connection && info.sourceId && info.targetId) {
             info.connection.setConnector(getConnectorForPair(info.sourceId, info.targetId));
         }
@@ -844,8 +860,7 @@ jsPlumb.ready(() => {
         updateGuideConnectionPrompt();
     });
     instance.bind("connectionDetached", () => {
-        connectionsVerified = false;
-        refreshButtonStates();
+        invalidateConnectionVerification(true);
         updateGuideConnectionPrompt(true);
     });
 
